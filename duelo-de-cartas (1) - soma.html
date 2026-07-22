@@ -1,0 +1,1978 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Duelo de Cartas — Protótipo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<style>
+  :root{
+    --bg:#0a0a0a; --panel:#121212; --panel-2:#181818;
+    --line:#3a3a3a; --line-soft:#2a2a2a;
+    --white:#f2f2f2; --dim:#9a9a9a; --faint:#666;
+    --card-front:#f5f4ee; --card-ink:#141414;
+    --purple:#8a6fd1; --gold:#c9a24b;
+    --shadow:rgba(0,0,0,.6);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg); color:var(--white); font-family:'EB Garamond', serif; min-height:100vh; padding:18px;}
+  .title-font{font-family:'Cinzel', serif;}
+  .mono{font-family:'JetBrains Mono', monospace;}
+  svg{display:block;}
+  #app{width:100%;max-width:1900px;margin:0 auto;padding:0 24px;}
+
+  header{display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px; border-bottom:1px solid var(--line); padding-bottom:14px; margin-bottom:16px;}
+  .eyebrow{font-family:'JetBrains Mono', monospace; font-size:11px; letter-spacing:.22em; color:var(--dim); text-transform:uppercase;}
+  h1{font-size:26px; margin:2px 0 0 0; letter-spacing:.03em; color:var(--white);}
+  h2.section-title{font-family:'Cinzel',serif; font-size:16px; letter-spacing:.03em; margin:28px 0 12px; padding-top:14px; border-top:1px solid var(--line-soft);}
+  button{font-family:'Cinzel', serif; cursor:pointer; border-radius:3px; transition:transform .1s ease, background .12s ease, color .12s ease;}
+  button:active{transform:translateY(1px);}
+  button:disabled{opacity:.3; cursor:not-allowed;}
+  input,select{font-family:'JetBrains Mono',monospace; background:#000; color:var(--white); border:1px solid var(--line); border-radius:3px; padding:6px 8px; font-size:12px;}
+  label{font-size:11px; color:var(--dim); font-family:'JetBrains Mono',monospace;}
+  .btn-ghost{background:transparent; color:var(--white); border:1px solid var(--line); padding:8px 14px; font-size:12px; letter-spacing:.05em;}
+  .btn-ghost:hover:not(:disabled){background:var(--white); color:#000;}
+  .btn-brass{background:var(--white); color:#000; padding:8px 12px; font-size:12px; letter-spacing:.03em; border-radius:3px; width:100%; border:1px solid var(--white);}
+  .btn-brass:hover:not(:disabled){background:transparent; color:var(--white);}
+  .btn-purple{background:var(--purple); color:#fff; padding:7px 10px; font-size:11px; border:1px solid var(--purple); border-radius:3px; width:100%;}
+  .btn-purple:hover:not(:disabled){background:transparent; color:var(--purple);}
+  .btn-gold{background:var(--gold); color:#000; padding:6px 10px; font-size:11px; border:1px solid var(--gold); border-radius:3px;}
+  .btn-gold:hover:not(:disabled){background:transparent; color:var(--gold);}
+  .btn-small{padding:4px 8px; font-size:10.5px; border:1px solid var(--line); background:transparent; color:var(--white); border-radius:3px;}
+  .btn-small:hover:not(:disabled){background:var(--white); color:#000;}
+
+  #errorBanner{display:none; background:#000; border:1px solid var(--white); color:var(--white); padding:10px 14px; border-radius:4px; margin-bottom:14px; font-family:'JetBrains Mono',monospace; font-size:12px; white-space:pre-wrap;}
+
+  .seal-track{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;}
+  .seals{display:flex; gap:8px;}
+  .seal{width:24px; height:24px; border-radius:50%; border:1px solid var(--line); display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--faint); position:relative;}
+  .seal.done{border-color:var(--white); color:var(--white);}
+  .seal.current{background:var(--white); color:#000; font-weight:700; border-color:var(--white);}
+  .seal.shop::after{content:'$'; position:absolute; top:-9px; right:-7px; font-size:8px; color:var(--gold); border:1px solid var(--gold); border-radius:50%; width:12px; height:12px; display:flex; align-items:center; justify-content:center; background:#000;}
+  .overtime-strip{display:flex; align-items:center; gap:10px; border:1px solid var(--white); border-radius:4px; padding:6px 12px; font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--white); margin-bottom:10px;}
+  .overtime-strip .blip{width:6px; height:6px; border-radius:50%; background:var(--white); animation:blip 1s infinite;}
+  @keyframes blip{0%,100%{opacity:1;}50%{opacity:.2;}}
+
+  .legend{font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--faint); display:flex; gap:16px; flex-wrap:wrap; margin-bottom:14px; align-items:center;}
+  .legend .item{display:flex; align-items:center; gap:5px;}
+  .legend svg{width:13px; height:13px; color:var(--dim);}
+
+  .last-action{background:var(--panel); border:1px solid var(--line-soft); border-radius:8px; padding:10px 14px; font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--dim); margin-bottom:14px; min-height:18px;}
+  .last-action b{color:var(--white); font-weight:600;}
+
+  .board{
+    display:grid;
+    grid-template-columns:1fr 420px 1fr;
+    gap:28px;
+    align-items:start;
+}
+  @media(max-width:880px){ .board{grid-template-columns:1fr;} }
+
+  .player-col{background:var(--panel); border:1px solid var(--line-soft); border-radius:8px; padding:12px; position:relative;}
+  .player-col.active-turn{border-color:var(--white); box-shadow:0 0 0 1px var(--white);}
+  .player-col.defeated{opacity:.4;}
+  .player-head{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px;}
+  .player-identity{display:flex; align-items:baseline; gap:8px; min-width:0;}
+  .player-name{font-family:'Cinzel',serif; font-size:15px; letter-spacing:.03em;}
+  .player-head .pve-lives{font-family:'JetBrains Mono',monospace; color:var(--gold); font-size:10px; white-space:nowrap;}
+  .turn-tag{font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:.08em; color:#000; background:var(--white); padding:2px 8px; border-radius:9px;}
+  .stat-row{display:flex; align-items:center; gap:10px; margin-bottom:5px;}
+  .life-num{font-family:'JetBrains Mono',monospace; font-size:20px; color:var(--white); font-weight:700; min-width:24px;}
+  .life-bar{flex:1; height:6px; background:#000; border-radius:3px; overflow:hidden; border:1px solid var(--line);}
+  .life-fill{height:100%; background:var(--white);}
+  .mini-row{display:flex; align-items:center; gap:6px; font-family:'JetBrains Mono',monospace; font-size:11.5px; color:var(--dim); margin-bottom:4px;}
+  .mini-row svg{width:13px; height:13px;}
+  .mini-row.gold{color:var(--gold);}
+  .buffs-row{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; min-height:18px;}
+  .buff-chip{font-family:'JetBrains Mono',monospace; font-size:9.5px; padding:2px 7px; border-radius:8px; border:1px solid var(--line); color:var(--dim);}
+
+  .hand-label{font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.1em; color:var(--faint); text-transform:uppercase; margin:10px 0 8px;}
+  .hand{display:flex; gap:8px; flex-wrap:wrap;}
+  .empty-hand{font-size:12px; color:var(--faint); font-style:italic;}
+
+  .card{width:150px; height:210px; border-radius:8px; position:relative; flex:none; background:var(--card-front); color:var(--card-ink); border:1px solid #000; box-shadow:0 3px 8px var(--shadow); display:flex; flex-direction:column; align-items:center; padding:6px 5px; font-family:'EB Garamond', serif;}
+  .card.small-disabled{opacity:.4; filter:grayscale(1);}
+  .card.selected{outline:2px solid var(--white); outline-offset:2px;}
+  .card.purple-card{background:linear-gradient(160deg,#efe9fb,#d8c9f5); border-color:var(--purple);}
+  .card.fused-card{box-shadow:0 3px 8px var(--shadow), inset 0 0 0 2px var(--gold);}
+  .card[draggable="true"]{cursor:grab;}
+  .card-corner{position:absolute; top:5px; left:6px; display:flex; align-items:center; gap:3px;}
+  .card-corner svg{width:12px; height:12px;}
+  .instant-badge{position:absolute; top:4px; right:4px; width:17px; height:17px; border-radius:50%; border:1px solid var(--card-ink); display:flex; align-items:center; justify-content:center; background:var(--card-front);}
+  .instant-badge.spent{background:#c33; border-color:#c33; color:#fff;}
+  .instant-badge svg{width:10px; height:10px;}
+  .card-center-icon{margin-top:30px; width:51px; height:51px;}
+  .card-center-icon svg{width:100%; height:100%;}
+  .card-text{margin-top:auto; width:100%; text-align:center;}
+  .card-name{font-family:'Cinzel',serif; font-size:15px; line-height:1.15; font-weight:700;}
+  .card-type{font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.03em; color:#4a4a4a; margin:1px 0 3px;}
+  .card-desc{font-size:12px; line-height:1.15; color:#222;}
+  .rarity-pips{position:absolute; bottom:5px; left:6px; font-size:7px; letter-spacing:1px; color:#3a3a3a;}
+  .card-play-btn{margin-top:5px; font-family:'JetBrains Mono',monospace; font-size:12px; padding:3px 0; width:100%; background:#000; color:var(--card-front); border:1px solid #000; border-radius:3px;}
+  .card-play-btn:hover:not(:disabled){background:var(--card-front); color:#000;}
+  .card-play-btn:disabled{background:#555; color:#ccc; opacity:.5;}
+
+  .card-back{background:#0a0a0a; width:100%; height:100%; border:1px solid var(--line); display:flex; align-items:center; justify-content:center;}
+  .card-back-pattern{width:70%; height:70%; border:1px solid var(--dim); border-radius:6px; display:flex; align-items:center; justify-content:center; background:repeating-linear-gradient(45deg, #1c1c1c 0 6px, #0a0a0a 6px 12px);}
+  .card-back-pattern span{font-size:16px; color:var(--dim); font-family:'Cinzel',serif;}
+
+  .turn-controls{margin-top:12px; display:flex; flex-direction:column; gap:6px;}
+  .sd-hint{font-size:9.5px; color:var(--faint); font-family:'JetBrains Mono',monospace; text-align:center;}
+
+  .overflow-row{display:flex; align-items:center; gap:8px; margin-top:8px;}
+  .overflow-stack{position:relative; width:40px; height:56px;}
+  .overflow-stack .mini-card{position:absolute; width:40px; height:56px; border-radius:4px; background:var(--card-front); border:1px solid #000;}
+  .overflow-count{font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--dim);}
+
+  .consumables-row{display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;}
+  .consumable-chip{display:flex; align-items:center; gap:6px; border:1px solid var(--line); border-radius:6px; padding:4px 8px; font-size:10.5px; font-family:'JetBrains Mono',monospace;}
+  .consumable-chip svg{width:14px;height:14px;}
+
+  .center-col{display:flex; flex-direction:column; gap:14px;}
+  .table-zone{background:var(--panel); border:2px dashed var(--line); border-radius:8px; padding:50px; text-align:center; min-height:170px; display:flex; flex-direction:column; align-items:center; justify-content:center; transition:border-color .15s, background .15s;}
+  .table-zone.drag-over{border-color:var(--white); background:var(--panel-2);}
+  .deck-stack{position:relative; height:146px; width:104px; display:flex; align-items:center; justify-content:center;}
+  .deck-stack .card{position:absolute;}
+  .deck-count{font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--dim); margin-top:8px;}
+  .table-hint{font-family:'JetBrains Mono',monospace; font-size:9.5px; color:var(--faint); margin-top:4px;}
+  .reveal-purple{margin-top:10px;}
+
+  .status-banner{background:var(--panel); border:1px solid var(--line-soft); border-radius:8px; padding:12px; text-align:center; font-family:'Cinzel',serif; font-size:13px; color:var(--white);}
+  .status-banner .sub{display:block; font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--dim); margin-top:4px;}
+
+  .shop-panel{background:var(--panel); border:1px solid var(--gold); border-radius:8px; padding:16px; margin-top:16px;}
+  .shop-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;}
+  .shop-title{font-family:'Cinzel',serif; color:var(--gold); font-size:15px;}
+  .shop-slots{display:flex; gap:75px; flex-wrap:wrap; justify-content:center;}
+  .shop-slot{width:120px; text-align:center;}
+  .shop-price{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--gold); margin:6px 0;}
+  .shop-actions{display:flex; justify-content:center; gap:10px; margin-top:14px; flex-wrap:wrap;}
+  .shop-empty-slot{width:104px; height:146px; border:1px dashed var(--line); border-radius:8px; display:flex; align-items:center; justify-content:center; color:var(--faint); font-family:'JetBrains Mono',monospace; font-size:10px;}
+
+  details.panel{background:var(--panel); border:1px solid var(--line-soft); border-radius:8px; padding:12px 14px; margin-bottom:14px;}
+  details.panel summary{cursor:pointer; font-family:'Cinzel',serif; color:var(--white); font-size:13px; letter-spacing:.03em;}
+  details.panel p{font-size:12.5px; line-height:1.5; color:var(--dim);}
+  details.panel ul{margin:8px 0 0 0; padding-left:18px; font-size:12.5px; color:var(--dim);}
+  details.panel li{margin-bottom:3px;}
+  details.panel b{color:var(--white);}
+
+  .grimoire-gallery{display:flex; flex-wrap:wrap; gap:14px; margin-top:10px;}
+  .grimoire-card{width:110px; text-align:center;}
+  .grimoire-card .card{pointer-events:none; margin:0 auto;}
+  .grimoire-caption{font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--faint); margin-top:6px; text-transform:uppercase;}
+
+  .admin-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; margin-bottom:14px;}
+  .admin-field{display:flex; flex-direction:column; gap:3px;}
+  .admin-field input, .admin-field select{width:100%;}
+  .subhead{font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--gold); text-transform:uppercase; letter-spacing:.08em; margin:16px 0 8px;}
+  table.admin-table{width:100%; border-collapse:collapse; font-size:11.5px; margin-bottom:10px;}
+  table.admin-table th, table.admin-table td{border:1px solid var(--line-soft); padding:5px 6px; text-align:left; font-family:'JetBrains Mono',monospace;}
+  table.admin-table th{color:var(--gold); font-weight:600;}
+  table.admin-table input, table.admin-table select{width:64px;}
+  table.admin-table input.wide{width:100%;}
+  .live-row{display:flex; gap:8px; align-items:end; flex-wrap:wrap; margin-bottom:10px;}
+
+  .creator-form{display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:10px; align-items:end;}
+  .creator-form .full{grid-column:1/-1;}
+  .msg-line{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--dim); margin-top:8px; min-height:14px;}
+
+  .io-row{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+  #modeMenu{max-width:620px; min-height:80vh; margin:0 auto; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:16px;}
+  #modeMenu h1{font-size:38px; margin:0;}
+  .mode-buttons{width:min(100%,330px); display:flex; flex-direction:column; gap:10px;}
+  .mode-btn{padding:15px; font-size:15px; background:var(--panel); color:var(--white); border:1px solid var(--line);}
+  .mode-btn:hover{background:var(--white); color:#000;}
+  #pveLobby{background:var(--panel); border:1px solid var(--gold); border-radius:8px; padding:18px; margin-bottom:16px;}
+  .pve-lobby-row{display:flex; gap:10px; align-items:end; flex-wrap:wrap; margin-top:12px;}
+  .pve-lives{font-family:'JetBrains Mono',monospace; color:var(--gold); font-size:11px; margin-top:6px;}
+  #pveResult{position:fixed; inset:0; background:rgba(0,0,0,.76); z-index:10; display:flex; align-items:center; justify-content:center; padding:18px;}
+  .result-dialog{max-width:380px; width:100%; background:var(--panel); border:1px solid var(--white); border-radius:8px; padding:24px; text-align:center;}
+  .result-dialog h2{font-family:'Cinzel',serif; margin:0 0 10px;}
+  #multiplayerLobby{background:var(--panel); border:1px solid var(--purple); border-radius:8px; padding:18px; margin-bottom:16px;}
+  .mp-tabs{display:flex; gap:8px; margin:12px 0; flex-wrap:wrap;}
+  .mp-status{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--dim); margin-top:10px; min-height:16px;}
+  #matchChanges{background:var(--panel); border:1px solid var(--line-soft); border-radius:8px; padding:10px 14px; margin:12px 0; font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--dim);}
+  #mpChat{position:fixed; right:18px; bottom:18px; width:min(300px,calc(100vw - 36px)); background:var(--panel); border:1px solid var(--purple); border-radius:8px; z-index:5; overflow:hidden;}
+  .chat-head{font-family:'Cinzel',serif; font-size:12px; padding:9px 11px; border-bottom:1px solid var(--line);}
+  #chatMessages{height:180px; overflow:auto; padding:8px 10px; font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--dim);}
+  .chat-line{margin:0 0 6px; word-break:break-word;}.chat-line b{color:var(--white);}
+  .chat-compose{display:flex; gap:6px; padding:8px; border-top:1px solid var(--line);}.chat-compose input{min-width:0; flex:1;}
+  .card-fly{position:fixed; z-index:30; pointer-events:none; transition:left .38s cubic-bezier(.2,.8,.2,1), top .38s cubic-bezier(.2,.8,.2,1), transform .38s ease, opacity .38s ease;}
+  .life-num.fx-damage{animation:damagePulse .55s ease;} .life-num.fx-heal{animation:healPulse .55s ease;} .mini-row.fx-shield{animation:shieldPulse .55s ease;} .buffs-row.fx-buff{animation:buffPulse .7s ease;}
+  @keyframes damagePulse{0%,100%{color:var(--white);transform:translateY(0)}35%{color:#ff4b4b;transform:translateY(7px) scale(1.18)}}
+  @keyframes healPulse{0%,100%{color:var(--white);transform:scale(1)}35%{color:#62e58d;transform:scale(1.2)}}
+  @keyframes shieldPulse{0%,100%{color:var(--dim)}35%{color:#f2cc5c;transform:scale(1.12)}}
+  @keyframes buffPulse{0%,100%{box-shadow:none}40%{box-shadow:0 0 0 2px var(--purple),0 0 18px var(--purple)}}
+  .history-panel{margin-top:10px; padding:10px; border:1px solid var(--purple); border-radius:6px; background:#0c0c0c;}.history-panel .hand{justify-content:center;}.history-empty{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--faint);}
+</style>
+</head>
+<body>
+<div id="modeMenu">
+  <div class="eyebrow">sandbox local</div>
+  <h1 class="title-font">Duelo de Cartas</h1>
+  <div class="mode-buttons">
+    <button class="mode-btn" onclick="openPveLobby()">Modo PvE</button>
+    <button class="mode-btn" onclick="openMultiplayerLobby()">Multiplayer 1x1</button>
+    <button class="mode-btn" onclick="startTestMode()">Teste</button>
+  </div>
+</div>
+
+<div id="app" style="display:none;">
+
+  <header>
+    <div>
+      <div class="eyebrow">Protótipo jogável · sandbox local</div>
+      <h1 class="title-font">Duelo de Cartas</h1>
+    </div>
+    <div><button class="btn-ghost" id="btnRestart">↺ Reiniciar partida</button></div>
+  </header>
+
+  <div id="errorBanner"></div>
+
+  <div id="pveLobby" style="display:none;"></div>
+  <div id="multiplayerLobby" style="display:none;"></div>
+
+  <div id="gameArea">
+  <div class="seal-track" id="sealTrack"></div>
+  <div class="legend" id="legend"></div>
+  <div class="last-action" id="lastActionBox"></div>
+
+  <div class="board" id="board"></div>
+  <div class="shop-panel" id="shopPanel" style="display:none;"></div>
+  </div>
+  <div id="matchChanges" style="display:none;"></div>
+
+  <div id="rulesSection"><h2 class="section-title">Grimório de Regras</h2>
+  <details class="panel" id="grimoire" open><summary>Regras vigentes (atualiza sozinho)</summary><div id="grimoireBody"></div></details>
+  </div>
+
+  <div id="cardsSection"><h2 class="section-title">Grimório de Cartas</h2>
+  <details class="panel" open><summary>Todas as cartas existentes, como um diário ilustrado</summary><div class="grimoire-gallery" id="cardGrimoire"></div></details>
+  </div>
+
+  <div id="adminSection"><h2 class="section-title">Painel Admin</h2>
+  <details class="panel" open><summary>Editar todas as regras, valores e o baralho</summary><div id="adminRoot"></div></details>
+  </div>
+
+  <div id="creatorSection"><h2 class="section-title">Criar Carta ao Vivo</h2>
+  <details class="panel"><summary>Monte uma carta personalizada e adicione ao grimório</summary><div id="creatorRoot"></div></details>
+  </div>
+
+  <div id="ioSection"><h2 class="section-title">Importar / Exportar Configuração</h2>
+  <details class="panel" open><summary>Salvar as regras atuais em .txt ou carregar um arquivo</summary>
+    <div class="io-row" style="margin-top:10px;">
+      <button class="btn-gold" id="btnExport">⭳ Salvar configuração (.txt)</button>
+      <label class="btn-ghost" style="display:inline-block;" for="fileImport">⭱ Importar configuração (.txt)</label>
+      <input type="file" id="fileImport" accept=".txt,.json" style="display:none;">
+    </div>
+    <div class="msg-line" id="ioMsg"></div>
+  </details>
+  </div>
+
+</div>
+
+<script>
+/* =========================================================================
+   ÍCONES
+   ========================================================================= */
+const ICONS = {
+  espada: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="16" y2="8"/><line x1="13" y1="4" x2="20" y2="4"/><line x1="13" y1="4" x2="13" y2="11"/><line x1="4" y1="20" x2="2" y2="22"/><line x1="9" y1="15" x2="12" y2="18"/></svg>`,
+  arco: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3 C11 12 11 12 7 21"/><line x1="7" y1="3" x2="7" y2="21"/><line x1="3" y1="12" x2="19" y2="12"/><path d="M15 8 L20 12 L15 16"/></svg>`,
+  escudo: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M12 3 L20 6 V12 C20 17 16.5 20 12 21 C7.5 20 4 17 4 12 V6 Z"/></svg>`,
+  pocao: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="7" x2="12" y2="17"/><line x1="7" y1="12" x2="17" y2="12"/></svg>`,
+  elixir: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"><path d="M9 2 H15 M10 2 V8 L5 18 C4.3 19.6 5.5 21 7.2 21 H16.8 C18.5 21 19.7 19.6 19 18 L14 8 V2"/></svg>`,
+  perfurante: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M12 2 L14 10 L22 12 L14 14 L12 22 L10 14 L2 12 L10 10 Z"/></svg>`,
+  moeda: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9 9.5c0-1.4 1.3-2 3-2s3 .8 3 2-1.3 1.8-3 2-3 .8-3 2 1.3 2 3 2 3-.6 3-2"/></svg>`,
+  veneno: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M12 2 C12 2 6 11 6 15 a6 6 0 0 0 12 0 C18 11 12 2 12 2 Z"/></svg>`,
+  regeneracao: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M12 20 C6 15 3 11.5 3 8 a4.5 4.5 0 0 1 9-1 a4.5 4.5 0 0 1 9 1 c0 3.5-3 7-9 12Z"/><line x1="12" y1="8" x2="12" y2="13"/><line x1="9.5" y1="10.5" x2="14.5" y2="10.5"/></svg>`,
+  atordoamento: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M13 2 L5 14 H11 L9 22 L19 9 H13 Z"/></svg>`,
+  enfraquecimento: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="4" x2="12" y2="18"/><path d="M6 12 L12 18 L18 12"/></svg>`,
+  vampirismo: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M12 3 C7 6 4 9 4 13 a8 5 0 0 0 16 0 C20 9 17 6 12 3 Z"/><path d="M9.5 14 L8.5 18"/><path d="M14.5 14 L15.5 18"/></svg>`,
+  fragmento: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M12 20 C6 15 3 11.5 3 8 a4.5 4.5 0 0 1 9-1 a4.5 4.5 0 0 1 9 1 c0 3.5-3 7-9 12Z"/></svg>`,
+  generic: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>`
+};
+const ICON_INSTANT = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-3-6.2"/><path d="M20 3v5h-5"/></svg>`;
+function iconFor(card){ return (card && ICONS[card.symbol]) || ICONS.generic; }
+function byId(id){ return document.getElementById(id); }
+
+const sons = {
+  shield: new Audio("sounds/shield.wav"), //
+  tcard: new Audio("sounds/card1.mp3"), //
+  card: [
+    new Audio("sounds/card2.mp3"), //
+    new Audio("sounds/card3.mp3")
+  ],
+
+  damage: new Audio("sounds/damage.mp3"), //
+  button: new Audio("sounds/button.wav"), //
+  chat: new Audio("sounds/chat.wav"),
+  buy: new Audio("sounds/buy.wav"), //
+  sell: new Audio("sounds/sell.wav"), //
+  heal: new Audio("sounds/heal.ogg"), //
+  buff: new Audio("sounds/buff.wav"), //
+  shopopen: new Audio("sounds/shopOpen.mp3"), // tocarSom("");
+  reroll: new Audio("sounds/reroll.mp3")
+};
+
+const ultimoSom = {};
+
+function tocarSom(nome, cooldown = 0){
+  if(!sons[nome]) return;
+
+  const agora = Date.now();
+
+  // Verifica cooldown (se houver)
+  if(cooldown > 0){
+    if(ultimoSom[nome] && agora - ultimoSom[nome] < cooldown){
+      return;
+    }
+    ultimoSom[nome] = agora;
+  }
+
+  let som = sons[nome];
+
+  // Se houver vários sons, escolhe um aleatório
+  if(Array.isArray(som)){
+    som = som[Math.floor(Math.random() * som.length)];
+  }
+
+  som.currentTime = 0;
+  som.volume = 0.25;
+  som.play().catch(e => console.log(e));
+}
+
+/* =========================================================================
+   CONFIG — tudo aqui pode ser editado no Painel Admin ou importado de .txt
+   ========================================================================= */
+let CONFIG = {
+  startingLife: 15, startingMoney: 3, maxLifeCap: 15, handLimit: 3,
+  normalRounds: 8, overtimeStartDamage: 1, overtimeIncreaseEvery: 2,
+  drawPerRound: 1, drawWhenHandEmpty: 2, moneyPerDamage: 1,
+  shopInterval: 4, shopSize: 3, shopRerollCost: 4,
+  specialDrawUnlockRound: 3, specialDrawCooldown: 3,
+  cards: {
+    espada:     {name:'Espada', symbol:'espada', type:'Arma Corpo a Corpo', kind:'attack', damage:3, piercing:false, noRound:false, rarity:'comum', deckCopies:4, source:'deck', inShop:true, price:2},
+    arco:       {name:'Arco', symbol:'arco', type:'Arma Longa Distância', kind:'attack', damage:2, piercing:true, noRound:false, rarity:'comum', deckCopies:4, source:'deck', inShop:true, price:2},
+    machado:    {name:'Machado', symbol:'espada', type:'Arma Corpo a Corpo', kind:'attack', damage:4, piercing:false, noRound:false, rarity:'raro', deckCopies:2, source:'deck', inShop:true, price:4, blocksNoRoundCards:true},
+    mimicry:    {name:'Mimicry', symbol:'veneno', type:'Espada de Veneno', kind:'attack', damage:3, maxDamage:4, piercing:false, noRound:false, rarity:'raro', deckCopies:2, source:'deck', poisonChance:.33, poisonAmount:1, inShop:true, price:4},
+    escudo:     {name:'Escudo', symbol:'escudo', type:'Defesa', kind:'shield', shield:3, noRound:true, rarity:'incomum', inShop:true, price:2, deckCopies:3, source:'deck'},
+    pocao:      {name:'Poção', symbol:'pocao', type:'Cura', kind:'heal', heal:3, noRound:true, rarity:'incomum', inShop:true, price:3, deckCopies:3, source:'deck'},
+    pocaoForte: {name:'Poção Maior', symbol:'pocao', type:'Cura', kind:'heal', heal:4, noRound:true, rarity:'raro', inShop:true, price:3, deckCopies:2, source:'deck'},
+    elixir:     {name:'Elixir da Força', symbol:'elixir', type:'Poção', kind:'buff_force', forceBonus:1, duration:2, noRound:true, rarity:'raro', inShop:true, price:3, deckCopies:2, source:'deck'},
+    perfurante: {name:'Ataque Perfurante', symbol:'perfurante', type:'Encantamento', kind:'buff_pierce', noRound:true, rarity:'raro', inShop:true, price:2, deckCopies:2, source:'deck'},
+    moedasaco:  {name:'Saco de Moedas', symbol:'moeda', type:'Item Exclusivo', kind:'moneybag', damage:2, bonusDamageIfHigh:3, bonusThreshold:6, moneyMult:3, noRound:false, rarity:'raro', shopOnly:true, price:5, source:'shop'},
+    fragmento:  {name:'Fragmento de Vida', symbol:'fragmento', type:'Consumível Espontâneo', kind:'consumable_heal', heal:4, noRound:true, rarity:'raro', shopOnly:true, price:6, source:'shop'}
+  },
+  // A quantidade no baralho pertence à própria carta. Assim, não existe uma
+  // segunda lista para manter sincronizada quando uma carta é criada.
+};
+
+/* =========================================================================
+   CATÁLOGO DE CARTAS
+
+   Toda carta deve entrar por registrarCarta(). Ela passa a existir no jogo e
+   no grimório imediatamente. `copiasNoBaralho` é opcional: zero significa que
+   a carta existe apenas para loja/admin/grimório.
+
+   Exemplo para acrescentar uma carta pelo código:
+   registrarCarta('adaga', {
+     name:'Adaga', symbol:'espada', type:'Arma', kind:'attack',
+     damage:2, piercing:false, noRound:false, rarity:'comum'
+   }, { copiasNoBaralho: 3 });
+   ========================================================================= */
+function registrarCarta(id, definition, options={}){
+  if(!id || !definition || typeof definition!=='object') throw new Error('Carta inválida.');
+  const copiasNoBaralho = options.copiasNoBaralho ?? definition.deckCopies ?? 0;
+  const deckCopies = Math.max(0, Number(copiasNoBaralho)||0);
+  CONFIG.cards[id] = {...definition, deckCopies, source:definition.source || (deckCopies>0?'deck':'shop')};
+  if(options.atualizarTela !== false) atualizarCatalogoDeCartas();
+  return id;
+}
+
+function atualizarCatalogoDeCartas(){
+  if(byId('cardGrimoire')) renderGrimoire();
+  if(byId('adminRoot') && (state || GAME_MODE)) renderAdminPanel();
+}
+
+function normalizarCatalogoImportado(config){
+  const legado = config.deckComposition || {};
+  config.startingLife = 15;
+  config.maxLifeCap = 15;
+  Object.entries(config.cards || {}).forEach(([id, card])=>{
+    card.deckCopies = Math.max(0, Number(card.deckCopies ?? legado[id] ?? 0)||0);
+    card.source = card.source || (card.deckCopies>0?'deck':'shop');
+  });
+  delete config.deckComposition;
+  return config;
+}
+
+/* ========================================================================= */
+let state = null;
+let CONFIG_BACKUP = null;
+let fusionCounter = 0;
+let customCounter = 0;
+let dragData = null;
+let GAME_MODE = null;
+let PVE_SESSION = null;
+let botTimer = null;
+let PVE_DEFAULTS = {playerName:'Jogador', startingLives:3};
+let MP_PEER = null;
+let MP_CONN = null;
+let MP_ROLE = null;
+let MP_ROOM = null;
+let MP_READY = {host:false, guest:false};
+let MP_SESSION = null;
+let MP_APPLYING = false;
+let MP_CHAT = [];
+let MP_MATCH_STARTED = false;
+
+function setVisible(id, visible){ byId(id).style.display = visible?'':'none'; }
+function showApp(){ byId('modeMenu').style.display='none'; byId('app').style.display='block'; }
+
+function startTestMode(){
+  GAME_MODE='test'; PVE_SESSION=null; showApp();
+  const chat=byId('mpChat'); if(chat) chat.remove();
+  setVisible('btnRestart',true);
+  ['gameArea','rulesSection','cardsSection','adminSection','creatorSection','ioSection'].forEach(id=>setVisible(id,true));
+  setVisible('pveLobby',false);
+  initGame(); renderAdminPanel(); renderGrimoire(); renderCreatorForm();
+  tocarSom("button");
+}
+
+function openPveLobby(){
+  GAME_MODE='pve'; PVE_SESSION=null; showApp();
+  const chat=byId('mpChat'); if(chat) chat.remove();
+  setVisible('btnRestart',false);
+  setVisible('pveLobby',true); setVisible('gameArea',false);
+  ['rulesSection','cardsSection'].forEach(id=>setVisible(id,false));
+  ['adminSection','creatorSection','ioSection'].forEach(id=>setVisible(id,true));
+  renderAdminPanel(); renderCreatorForm(); renderPveLobby();
+  tocarSom("button");
+}
+
+function renderPveLobby(){
+  byId('pveLobby').innerHTML = `<div class="shop-title title-font">Preparar duelo PvE</div>
+    <div class="pve-lobby-row">
+      <div class="admin-field"><label>Seu nome</label><input id="pveName" value="${PVE_SESSION?.playerName||PVE_DEFAULTS.playerName}" maxlength="18"></div>
+      <div class="admin-field"><label>Vidas por combatente</label><input id="pveLives" type="number" min="1" value="${PVE_SESSION?.startingLives||PVE_DEFAULTS.startingLives}"></div>
+      <button class="btn-gold" onclick="startPveSeries()">Iniciar PvE</button>
+    </div>
+    <div class="msg-line">Configure as regras no Painel Admin antes de iniciar. O adversário será sempre o Bot.</div>`;
+    tocarSom("button");
+}
+
+function startPveSeries(){
+  const playerName = byId('pveName').value.trim().slice(0,18) || 'Jogador';
+  const startingLives = Math.max(1, Number(byId('pveLives').value)||3);
+  PVE_DEFAULTS = {playerName, startingLives};
+  PVE_SESSION = {playerName, startingLives, leftLives:startingLives, botLives:startingLives};
+  setVisible('pveLobby',false); setVisible('gameArea',true);
+  ['adminSection','creatorSection','ioSection'].forEach(id=>setVisible(id,false));
+  initGame();
+  tocarSom("button");
+}
+
+function returnToPveLobby(){
+  if(botTimer) clearTimeout(botTimer);
+  state=null;
+  const result=byId('pveResult'); if(result) result.style.display='none';
+  openPveLobby();
+}
+
+function openMultiplayerLobby(){
+  GAME_MODE='multiplayer'; PVE_SESSION=null; state=null; MP_MATCH_STARTED=false; showApp();
+  setVisible('btnRestart',false); setVisible('pveLobby',false); setVisible('multiplayerLobby',true); setVisible('gameArea',false); setVisible('matchChanges',false);
+  ['rulesSection','cardsSection','adminSection','creatorSection','ioSection'].forEach(id=>setVisible(id,false));
+  renderMultiplayerLobby('menu');
+  tocarSom("button");
+}
+
+function renderMultiplayerLobby(tab='menu'){
+  const root=byId('multiplayerLobby');
+  const defaults={name:'Jogador',lives:3,starter:'random'};
+  if(tab==='menu') root.innerHTML=`<div class="shop-title title-font">Multiplayer 1x1</div><div class="mp-tabs"><button class="btn-gold" onclick="renderMultiplayerLobby('host')">Criar sala</button><button class="btn-ghost" onclick="renderMultiplayerLobby('guest')">Entrar em sala</button></div>`;
+  if(tab==='host') root.innerHTML=`<div class="shop-title title-font">Criar sala</div><div class="pve-lobby-row"><div class="admin-field"><label>Seu nome</label><input id="mpName" maxlength="18" value="${defaults.name}"></div><div class="admin-field"><label>Vidas</label><input id="mpLives" type="number" min="1" value="${defaults.lives}"></div><div class="admin-field"><label>Quem começa</label><select id="mpStarter"><option value="random">Aleatório</option><option value="host">Host</option><option value="guest">Guest</option></select></div><button class="btn-gold" onclick="createMultiplayerRoom()">Criar</button></div><div class="mp-status" id="mpStatus"></div>`;
+  if(tab==='guest') root.innerHTML=`<div class="shop-title title-font">Entrar em sala</div><div class="pve-lobby-row"><div class="admin-field"><label>Seu nome</label><input id="mpName" maxlength="18" value="${defaults.name}"></div><div class="admin-field"><label>Código da sala</label><input id="mpRoom" placeholder="duelo-xxxxxx"></div><button class="btn-gold" onclick="joinMultiplayerRoom()">Entrar</button></div><div class="mp-status" id="mpStatus"></div>`;
+  if(tab==='waiting') root.innerHTML=`<div class="shop-title title-font">Sala multiplayer</div><div class="mp-status" id="mpStatus"></div><div id="mpRoomSettings"></div><div class="mp-tabs"><button class="btn-gold" id="mpReadyBtn" onclick="toggleMultiplayerReady()">Estou pronto</button>${MP_ROLE==='host'?'<button class="btn-ghost" id="mpStartBtn" onclick="startMultiplayerMatch()" disabled>Iniciar partida</button>':''}</div>`;
+}
+
+function roomCode(){ return 'duelo-'+Math.random().toString(36).slice(2,8); }
+function mpStatus(text){ const el=byId('mpStatus'); if(el) el.textContent=text; }
+function createMultiplayerRoom(){
+  if(!window.Peer){ mpStatus('PeerJS não carregou. Verifique sua conexão com a internet.'); return; }
+  tocarSom("button");
+  MP_ROLE='host'; MP_ROOM=roomCode(); MP_READY={host:false,guest:false}; MP_CHAT=[];
+  const name=byId('mpName').value.trim().slice(0,18)||'Host';
+  MP_SESSION={hostName:name,guestName:'Guest',startingLives:Math.max(1,Number(byId('mpLives').value)||3),hostLives:0,guestLives:0,starter:byId('mpStarter').value};
+  MP_PEER=new Peer(MP_ROOM);
+  MP_PEER.on('open',()=>{ renderMultiplayerLobby('waiting'); renderMpWaiting(); mpStatus('Código da sala: '+MP_ROOM+' · aguardando o adversário…'); ['adminSection','creatorSection','ioSection'].forEach(id=>setVisible(id,true)); renderAdminPanel(); renderCreatorForm(); });
+  MP_PEER.on('connection',conn=>{ if(MP_CONN){ conn.close(); return; } setupMultiplayerConnection(conn); });
+  MP_PEER.on('error',err=>mpStatus('Erro PeerJS: '+err.type));
+}
+
+function joinMultiplayerRoom(){
+  if(!window.Peer){ mpStatus('PeerJS não carregou. Verifique sua conexão com a internet.'); return; }
+  MP_ROLE='guest'; MP_ROOM=byId('mpRoom').value.trim(); MP_CHAT=[];
+  if(!MP_ROOM){ mpStatus('Informe o código da sala.'); return; }
+  const name=byId('mpName').value.trim().slice(0,18)||'Guest';
+  tocarSom("button");
+  MP_PEER=new Peer();
+  MP_PEER.on('open',()=>setupMultiplayerConnection(MP_PEER.connect(MP_ROOM,{reliable:true,metadata:{name}})));
+  MP_PEER.on('error',err=>mpStatus('Não foi possível entrar: '+err.type));
+  mpStatus('Conectando à sala…');
+}
+
+function setupMultiplayerConnection(conn){
+  MP_CONN=conn;
+  conn.on('open',()=>{
+    if(MP_ROLE==='guest') mpSend({type:'hello',name:conn.metadata?.name||'Guest'});
+    renderMultiplayerLobby('waiting'); renderMpWaiting();
+    mpStatus(MP_ROLE==='host'?'Adversário conectado.':'Conectado. Aguardando configurações do host.');
+    if(MP_ROLE==='host') mpSendLobby();
+  });
+  conn.on('data',handleMultiplayerMessage);
+  conn.on('close',()=>{ mpStatus('O adversário desconectou.'); addChatLine('Sistema','O inimigo saiu da sessão.'); });
+  conn.on('error',()=>mpStatus('A conexão apresentou um erro.'));
+}
+
+function mpSend(data){ if(MP_CONN?.open) MP_CONN.send(data); }
+function mpSendLobby(){ if(MP_ROLE==='host') mpSend({type:'lobby',session:MP_SESSION,config:CONFIG,ready:MP_READY}); }
+function renderMpWaiting(){
+  const root=byId('mpRoomSettings'); if(!root) return;
+  const other=MP_ROLE==='host'?MP_SESSION?.guestName:MP_SESSION?.hostName;
+  const deckTotal=Object.values(CONFIG.cards).reduce((sum,c)=>sum+(Number(c.deckCopies)||0),0);
+  root.innerHTML=`<div class="pve-lives">Host: ${MP_SESSION?.hostName||'—'} · Guest: ${MP_SESSION?.guestName||'—'} · Vidas: ${MP_SESSION?.startingLives||3} · Início: ${MP_SESSION?.starter||'random'}</div><div class="mp-status">Configuração do host: HP ${CONFIG.startingLife}, mão ${CONFIG.handLimit}, ${deckTotal} cartas no baralho.</div><div class="mp-status">Oponente: ${other||'aguardando…'} · Pronto: host ${MP_READY.host?'✓':'—'} / guest ${MP_READY.guest?'✓':'—'}</div>`;
+  const start=byId('mpStartBtn'); if(start) start.disabled=!(MP_READY.host&&MP_READY.guest);
+}
+
+function toggleMultiplayerReady(){
+  if(MP_ROLE==='host') MP_READY.host=!MP_READY.host; else MP_READY.guest=!MP_READY.guest;
+  mpSend({type:'ready',ready:MP_ROLE==='host'?MP_READY.host:MP_READY.guest});
+  renderMpWaiting(); if(MP_ROLE==='host') mpSendLobby();
+}
+
+function startMultiplayerMatch(){
+  if(MP_ROLE!=='host'||!MP_READY.host||!MP_READY.guest) return;
+  MP_SESSION.hostLives=MP_SESSION.startingLives; MP_SESSION.guestLives=MP_SESSION.startingLives;
+  const first=MP_SESSION.starter==='random'?(Math.random()<.5?'left':'right'):(MP_SESSION.starter==='host'?'left':'right');
+  MP_SESSION.first=first;
+  mpSend({type:'start',session:MP_SESSION,config:CONFIG});
+  launchMultiplayerMatch();
+}
+
+function launchMultiplayerMatch(){
+  MP_MATCH_STARTED=true;
+  setVisible('multiplayerLobby',false); setVisible('gameArea',true); setVisible('matchChanges',true);
+  ['adminSection','creatorSection','ioSection'].forEach(id=>setVisible(id,false));
+  renderMatchChanges(); initGame(); renderMultiplayerChat();
+}
+
+function renderMatchChanges(){
+  if(GAME_MODE!=='multiplayer') return;
+  const changed=Object.values(CONFIG.cards).filter(c=>c.fused||c.deckCopies===0).map(c=>c.name);
+  byId('matchChanges').textContent='Partida multiplayer · Vidas: '+MP_SESSION.startingLives+' · Primeiro: '+(MP_SESSION.first==='left'?MP_SESSION.hostName:MP_SESSION.guestName)+(changed.length?' · Cartas/configurações alteradas: '+changed.join(', '):' · Configuração do host aplicada.');
+}
+
+function handleMultiplayerMessage(msg){
+  if(!msg || typeof msg!=='object') return;
+  if(msg.type==='hello' && MP_ROLE==='host'){ MP_SESSION.guestName=msg.name||'Guest'; mpSendLobby(); renderMpWaiting(); return; }
+  if(msg.type==='lobby' && MP_ROLE==='guest'){ CONFIG=msg.config; MP_SESSION=msg.session; MP_READY=msg.ready; renderMpWaiting(); return; }
+  if(msg.type==='ready'){
+    if(MP_ROLE==='host') MP_READY.guest=!!msg.ready; else MP_READY.host=!!msg.ready;
+    renderMpWaiting(); if(MP_ROLE==='host') mpSendLobby(); return;
+  }
+  if(msg.type==='start' && MP_ROLE==='guest'){ CONFIG=msg.config; MP_SESSION=msg.session; launchMultiplayerMatch(); return; }
+  if(msg.type==='action' && MP_ROLE==='host'){ MP_APPLYING=true; executeMultiplayerAction(msg.action,msg.args||[]); MP_APPLYING=false; return; }
+  if(msg.type==='snapshot' && MP_ROLE==='guest'){ state=msg.state; MP_SESSION=msg.session; CONFIG=msg.config; render(); return; }
+  if(msg.type==='chat'){ addChatLine(msg.name,msg.text);
+  tocarSom("chat", 1500); return;
+  }
+}
+
+function requestMultiplayerAction(action,args=[]){
+  if(GAME_MODE==='multiplayer' && MP_ROLE==='guest' && !MP_APPLYING){ mpSend({type:'action',action,args}); return true; }
+  return false;
+}
+
+function executeMultiplayerAction(action,args){
+  const handlers={playCard,useConsumable,useSpecialDraw,passTurn,usePunch,buyFromShop,rerollShop,sellSelectedShopCard,leaveShopTurn,escolherCarta,fuseCards,continueMultiplayer};
+  if(handlers[action]) handlers[action](...args);
+}
+
+function renderMultiplayerChat(){
+  let el=byId('mpChat'); if(!el){ el=document.createElement('div'); el.id='mpChat'; document.body.appendChild(el); }
+  el.innerHTML=`<div class="chat-head">Chat da partida</div><div id="chatMessages"></div><div class="chat-compose"><input id="chatInput" maxlength="280" placeholder="Mensagem"><button class="btn-small" onclick="sendChat()">Enviar</button></div>`;
+  MP_CHAT.forEach(item=>appendChatLine(item.name,item.text));
+}
+function appendChatLine(name,text){
+  const box=byId('chatMessages'); if(!box) return;
+  const line=document.createElement('div'); line.className='chat-line'; line.innerHTML='<b>'+name+':</b> '+text.replace(/[&<>]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch])); box.appendChild(line); box.scrollTop=box.scrollHeight;
+}
+function addChatLine(name,text){
+  MP_CHAT.push({name,text});
+  appendChatLine(name,text);
+}
+function sendChat(){ const input=byId('chatInput'); const text=input.value.trim(); if(!text) return; const name=MP_ROLE==='host'?MP_SESSION.hostName:MP_SESSION.guestName; addChatLine(name,text); mpSend({type:'chat',name,text}); input.value=''; }
+
+function showError(msg){ const el=byId('errorBanner'); el.style.display='block'; el.textContent='⚠ '+msg; }
+function clearError(){ const el=byId('errorBanner'); el.style.display='none'; el.textContent=''; }
+window.addEventListener('error', (e)=>{
+  showError('Erro no jogo: '+e.message+'\nA última configuração estável foi restaurada.');
+  if(CONFIG_BACKUP){
+    CONFIG = JSON.parse(JSON.stringify(CONFIG_BACKUP));
+    try{
+      if(GAME_MODE==='pve' && !PVE_SESSION){ renderAdminPanel(); renderGrimoire(); renderPveLobby(); }
+      else { initGame(); renderAdminPanel(); renderGrimoire(); }
+    }catch(_){}
+  }
+});
+
+function cardDescription(c){
+  switch(c.kind){
+    case 'attack': return 'Causa '+(c.maxDamage?'entre ':'')+(Number(c.damage)||0)+(c.maxDamage?' e '+(Number(c.maxDamage)||0):'')+' de dano ao oponente'+(c.piercing?', perfurando a defesa inimiga':'')+(c.poisonChance?' e tem '+Math.round(c.poisonChance*100)+'% de chance de causar '+(Number(c.poisonAmount)||1)+' de veneno no próximo turno':'')+(c.blocksNoRoundCards?' · No próximo round, você não poderá usar cartas sem gasto de round':'');
+    case 'shield': return 'Ganha '+(Number(c.shield)||0)+' de escudo';
+    case 'heal': return 'Cura '+(Number(c.heal)||0)+' de HP';
+    case 'buff_force': return '+'+(Number(c.forceBonus)||0)+' de força por '+(Number(c.duration)||0)+' rounds';
+    case 'buff_pierce': return 'Próximo ataque ignora escudo';
+    case 'moneybag': return 'Causa '+(Number(c.damage)||0)+' de dano ('+(Number(c.bonusDamageIfHigh)||0)+' se o oponente tiver mais de '+(Number(c.bonusThreshold)||0)+' de vida) — ganha '+(Number(c.moneyMult)||1)+'x ouro';
+    case 'consumable_heal': return 'Uso espontâneo: regenera '+(Number(c.heal)||0)+' de HP na hora';
+    case 'effect_poison': return 'Envenena o oponente: '+(Number(c.amount)||1)+' de dano por round, por '+(Number(c.duration)||2)+' rounds';
+    case 'effect_regen': return 'Você regenera '+(Number(c.amount)||1)+' de HP por round, por '+(Number(c.duration)||2)+' rounds';
+    case 'effect_stun': return 'O próximo ataque do oponente falha completamente';
+    case 'effect_weaken': return 'Reduz o próximo ataque do oponente em '+(Number(c.amount)||1);
+    case 'effect_vamp': return 'Seu próximo ataque cura metade do dano causado';
+    default: return '';
+  }
+}
+function cardShortDescription(c){
+  switch(c.kind){
+    case 'attack': return '+'+(Number(c.damage)||0)+(c.maxDamage?'–'+(Number(c.maxDamage)||0):'')+' Dano'+(c.piercing?' (Perfurante)':'')+(c.poisonChance?' · '+Math.round(c.poisonChance*100)+'% Veneno':'');
+    case 'shield': return '+'+(Number(c.shield)||0)+' Escudo';
+    case 'heal': case 'consumable_heal': return '+'+(Number(c.heal)||0)+' HP';
+    case 'buff_force': return '+'+(Number(c.forceBonus)||0)+' Força · '+(Number(c.duration)||0)+'R';
+    case 'buff_pierce': return 'Próx. ataque perfura';
+    case 'moneybag': return '+'+(Number(c.damage)||0)+' Dano · Ouro x'+(Number(c.moneyMult)||1);
+    case 'effect_poison': return '+'+(Number(c.amount)||1)+' Veneno · '+(Number(c.duration)||2)+'R';
+    case 'effect_regen': return '+'+(Number(c.amount)||1)+' HP · '+(Number(c.duration)||2)+'R';
+    case 'effect_stun': return 'Atordoa';
+    case 'effect_weaken': return '-'+(Number(c.amount)||1)+' Dano inimigo';
+    case 'effect_vamp': return 'Próx. ataque cura';
+    default: return '';
+  }
+}
+function rarityPips(rarity){
+  const level = rarity==='raro'?3:rarity==='incomum'?2:1;
+  let out=''; for(let i=0;i<3;i++) out += (i<level?'●':'○');
+  return out;
+}
+
+function shuffledDeck(){
+  let deck=[];
+  for(const [id,card] of Object.entries(CONFIG.cards)){
+    if(card.source !== 'deck') continue;
+    const count = Math.max(0, Number(card.deckCopies)||0);
+    for(let i=0;i<count;i++) deck.push(id);
+  }
+  for(let i=deck.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [deck[i],deck[j]]=[deck[j],deck[i]]; }
+  return deck;
+}
+
+function newPlayer(name){
+  return {
+    name, life:CONFIG.startingLife, shield:0, money:CONFIG.startingMoney,
+    hand:[], overflow:[], consumables:[], dots:[],
+    buffs:{forceRoundsLeft:0, forceAmount:0, pierceNext:false, vampNext:false},
+    incoming:{stunNext:false, weakenAmount:0},
+    nrUsedThisTurn:0, cardsPlayedThisTurn:0, lastSpecialDrawRound:-999,
+    lastPunchRound:-999, honorChance:.15, noRoundBlockedRound:null, playedCardIds:[]
+  };
+}
+
+function setTurn(key, decayShield=true){
+  state.turn = key;
+  const p = state.players[key];
+  if(decayShield) p.shield = Math.floor(Math.max(0,p.shield)*.5);
+  for(let i=p.dots.length-1;i>=0;i--){
+    const dot=p.dots[i];
+    if(dot.trigger!=='turnStart') continue;
+    p.life -= dot.amount;
+    p.dots.splice(i,1);
+    setLastAction(p.name+' sofre '+dot.amount+' de veneno no início do turno.');
+  }
+  p.nrUsedThisTurn = 0;
+  p.cardsPlayedThisTurn = 0;
+  checkGameOver();
+}
+
+function initGame(){
+  if(botTimer) clearTimeout(botTimer);
+  state = {
+    round:1, turn:'left', phase:'battle', over:false, winner:null, visualEffects:{}, lastTurnCards:{left:[],right:[]}, showHistory:false, justClosedShop:false, pendingCardAction:false,
+    deck:shuffledDeck(), lastAction:'Escolham as cartas iniciais.', specialReveal:null, shop:null, choice:null,
+    players:{
+      left:newPlayer(GAME_MODE==='pve' ? PVE_SESSION.playerName : GAME_MODE==='multiplayer' ? MP_SESSION.hostName : 'Jogador da Esquerda'),
+      right:newPlayer(GAME_MODE==='pve' ? 'Bot' : GAME_MODE==='multiplayer' ? MP_SESSION.guestName : 'Jogador da Direita')
+    }
+  };
+  drawCards('left', 2);
+  drawCards('right', 2);
+  setTurn('left', false);
+  iniciarEscolha('initial', 'left', 2);
+  clearError();
+  CONFIG_BACKUP = JSON.parse(JSON.stringify(CONFIG));
+}
+
+function setLastAction(text){ state.lastAction = text; }
+
+function triggerVisualEffect(key, type){
+  if(!state) return;
+  state.visualEffects[key]=type;
+  setTimeout(()=>{ if(state?.visualEffects?.[key]===type){ delete state.visualEffects[key]; render(); } }, 650);
+}
+
+function animateCardToTable(key, source, idx, onArrive){
+  const origin=document.querySelector(`[data-card-owner="${key}"][data-card-source="${source}"][data-card-index="${idx}"]`);
+  const target=byId('tableZone');
+  if(!origin || !target) return false;
+  const from=origin.getBoundingClientRect(), to=target.getBoundingClientRect();
+  const ghost=origin.cloneNode(true);
+  ghost.classList.add('card-fly'); ghost.style.left=from.left+'px'; ghost.style.top=from.top+'px'; ghost.style.width=from.width+'px'; ghost.style.height=from.height+'px';
+  document.body.appendChild(ghost);
+  origin.style.opacity='.25';
+  requestAnimationFrame(()=>{ ghost.style.left=(to.left+to.width/2-from.width/2)+'px'; ghost.style.top=(to.top+to.height/2-from.height/2)+'px'; ghost.style.transform='scale(.78)'; });
+  setTimeout(()=>{ onArrive?.(); ghost.style.opacity='0'; ghost.style.transform='scale(.5)'; setTimeout(()=>ghost.remove(),180); },650);
+  return true;
+}
+
+function recordPlayedCard(key, cardId){ if(state?.players[key]) state.players[key].playedCardIds.push(cardId); }
+
+function toggleLastTurnCards(){ if(!state) return; state.showHistory=!state.showHistory; render(); 
+tocarSom("button");
+}
+
+function drawCards(key, n){
+  const p = state.players[key];
+  const drawn=[];
+  for(let i=0;i<n;i++){
+    if(p.hand.length>=CONFIG.handLimit) break;
+    if(state.deck.length===0) rebuildDeck();
+    if(state.deck.length===0) break;
+    const cid = state.deck.pop();
+    p.hand.push(cid); drawn.push(cid);
+    tocarSom("tcard");
+  }
+  return drawn;
+}
+
+function rebuildDeck(){
+  const emUso = {};
+  for(const key of ['left','right']){
+    const p = state.players[key];
+    [...p.hand, ...p.overflow].forEach(id=>emUso[id]=(emUso[id]||0)+1);
+  }
+  state.deck = [];
+  Object.entries(CONFIG.cards).forEach(([id, card])=>{
+    if(card.source !== 'deck') return;
+    const disponiveis = Math.max(0, (Number(card.deckCopies)||0) - (emUso[id]||0));
+    for(let i=0;i<disponiveis;i++) state.deck.push(id);
+  });
+  for(let i=state.deck.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [state.deck[i],state.deck[j]]=[state.deck[j],state.deck[i]]; }
+}
+
+function tirarOpcoesDoDeck(n){
+  const options=[];
+  for(let i=0;i<n;i++){
+    if(state.deck.length===0) rebuildDeck();
+    if(state.deck.length===0) break;
+    options.push(state.deck.pop());
+    tocarSom("tcard");
+  }
+  return options;
+}
+
+function iniciarEscolha(type, key, optionCount, picksRemaining=1){
+  state.phase = 'choice';
+  state.choice = {type, key, options:tirarOpcoesDoDeck(optionCount), picksRemaining};
+  render();
+  if(GAME_MODE==='pve' && key==='right') scheduleBotChoice();
+}
+
+function scheduleBotChoice(){
+  if(botTimer) clearTimeout(botTimer);
+  botTimer=setTimeout(()=>{
+    if(GAME_MODE!=='pve' || !state?.choice || state.choice.key!=='right') return;
+    const choice=state.choice;
+    const selected=[...choice.options].sort((a,b)=>{
+      const ca=CONFIG.cards[a], cb=CONFIG.cards[b];
+      const score=c=>(c.kind==='attack'?(Number(c.damage)||0)*10:0)+(c.kind==='heal'?4:0)+(c.kind==='shield'?3:0);
+      return score(cb)-score(ca);
+    })[0];
+    escolherCarta(selected);
+  }, 500);
+}
+
+function escolherCarta(cardId){
+  if(requestMultiplayerAction('escolherCarta',[cardId])) return;
+  if(!state || state.phase!=='choice' || !state.choice) return;
+  const {type, key, options} = state.choice;
+  if(!options.includes(cardId)) return;
+  state.players[key].hand.push(cardId);
+  const naoEscolhidas = options.filter(id=>id!==cardId);
+  if(state.choice.picksRemaining>1){
+    state.choice.options=naoEscolhidas;
+    state.choice.picksRemaining--;
+    setLastAction(state.players[key].name+' escolhe mais '+state.choice.picksRemaining+' carta.');
+    render();
+    if(GAME_MODE==='pve' && key==='right') scheduleBotChoice();
+    return;
+  }
+  state.deck.push(...naoEscolhidas);
+  if(type==='initial' && key==='left'){ iniciarEscolha('initial','right',2); return; }
+  if(type==='initial'){
+    state.choice=null; state.phase='battle'; setTurn(GAME_MODE==='multiplayer'?MP_SESSION.first:'left',false); setLastAction('A partida começou.'); render(); return;
+  }
+  const next = key==='left' ? 'right' : null;
+  if(next && iniciarEscolhaDeRound(next)) return;
+  state.choice=null; state.phase='battle'; setTurn(GAME_MODE==='multiplayer'?MP_SESSION.first:'left'); setLastAction('Round '+state.round+' começa.'); render();
+}
+
+function otherKey(key){ return key==='left'?'right':'left'; }
+
+function checkGameOver(){
+  if(state.over) return;
+  const L=state.players.left, R=state.players.right;
+  if(L.life<=0 || R.life<=0){
+    state.over = true;
+    state.winner = (L.life<=0 && R.life<=0) ? 'empate' : (L.life<=0?'right':'left');
+    setLastAction(state.winner==='empate' ? 'Ambos caem ao mesmo tempo — EMPATE.' : (state.players[state.winner].name+' vence o duelo!'));
+    if(GAME_MODE==='pve') registerPveResult();
+    if(GAME_MODE==='multiplayer') registerMultiplayerResult();
+  }
+}
+
+function registerPveResult(){
+  if(!PVE_SESSION || state.pveResult) return;
+  if(state.winner==='left') PVE_SESSION.botLives--;
+  else if(state.winner==='right') PVE_SESSION.leftLives--;
+  else { PVE_SESSION.leftLives--; PVE_SESSION.botLives--; }
+  const won = state.winner==='left';
+  const lost = state.winner==='right';
+  const seriesOver = PVE_SESSION.leftLives<=0 || PVE_SESSION.botLives<=0;
+  state.pveResult = {
+    seriesOver,
+    title: won?'Você venceu!':lost?'Você perdeu para o Bot.':'Empate.',
+    text: `Vidas restantes — ${PVE_SESSION.playerName}: ${Math.max(0,PVE_SESSION.leftLives)} · Bot: ${Math.max(0,PVE_SESSION.botLives)}`
+  };
+}
+
+function continuePve(){
+  if(!state?.pveResult) return;
+  if(state.pveResult.seriesOver){ returnToPveLobby(); return; }
+  initGame();
+}
+
+function registerMultiplayerResult(){
+  if(!MP_SESSION || state.mpResult) return;
+  if(state.winner==='left') MP_SESSION.guestLives--;
+  else if(state.winner==='right') MP_SESSION.hostLives--;
+  else { MP_SESSION.hostLives--; MP_SESSION.guestLives--; }
+  state.mpResult={seriesOver:MP_SESSION.hostLives<=0||MP_SESSION.guestLives<=0, title:state.winner==='empate'?'Empate.':state.players[state.winner].name+' venceu!', text:`Vidas restantes — ${MP_SESSION.hostName}: ${Math.max(0,MP_SESSION.hostLives)} · ${MP_SESSION.guestName}: ${Math.max(0,MP_SESSION.guestLives)}`};
+}
+function continueMultiplayer(){
+  if(requestMultiplayerAction('continueMultiplayer',[])) return;
+  if(!state?.mpResult || MP_ROLE!=='host') return;
+  if(state.mpResult.seriesOver){ openMultiplayerLobby(); return; }
+  initGame();
+}
+
+/* ---------------------------- JOGAR CARTAS ---------------------------- */
+
+function applyNRCardEffect(key, card){
+  const p = state.players[key];
+  const opp = state.players[otherKey(key)];
+  switch(card.kind){
+    case 'shield':
+      p.shield += Number(card.shield)||0;
+      triggerVisualEffect(key,'shield');
+
+        tocarSom("shield");
+
+      return p.name+' usa '+card.name+' e ganha '+(Number(card.shield)||0)+' de escudo.';
+    case 'heal':
+      p.life += Number(card.heal)||0;
+      if(CONFIG.maxLifeCap!=null) p.life = Math.min(p.life, CONFIG.maxLifeCap);
+      triggerVisualEffect(key,'heal');
+      return p.name+' usa '+card.name+' e recupera '+(Number(card.heal)||0)+' de vida.';
+    case 'buff_force':
+      p.buffs.forceAmount = Number(card.forceBonus)||0;
+      p.buffs.forceRoundsLeft = Number(card.duration)||0;
+      tocarSom("buff");
+      triggerVisualEffect(key,'buff');
+      return p.name+' usa '+card.name+': +'+(Number(card.forceBonus)||0)+' de força por '+(Number(card.duration)||0)+' rounds.';
+    case 'buff_pierce':
+      p.buffs.pierceNext = true;
+      tocarSom("buff");
+      triggerVisualEffect(key,'buff');
+      return p.name+' conjura '+card.name+': próximo ataque ignora escudo.';
+    case 'effect_poison':
+      opp.dots.push({type:'poison', amount:Number(card.amount)||1, roundsLeft:Number(card.duration)||2});
+      return p.name+' envenena '+opp.name+' com '+card.name+'.';
+    case 'effect_regen':
+      p.dots.push({type:'regen', amount:Number(card.amount)||1, roundsLeft:Number(card.duration)||2});
+      return p.name+' usa '+card.name+' e passa a regenerar vida.';
+    case 'effect_stun':
+      opp.incoming.stunNext = true;
+      return p.name+' atordoa '+opp.name+' com '+card.name+'.';
+    case 'effect_weaken':
+      opp.incoming.weakenAmount = (opp.incoming.weakenAmount||0) + (Number(card.amount)||1);
+      return p.name+' enfraquece '+opp.name+' com '+card.name+'.';
+    case 'effect_vamp':
+      p.buffs.vampNext = true;
+      return p.name+' usa '+card.name+': próximo ataque vai curar parte do dano.';
+    default:
+      return p.name+' usa '+card.name+'.';
+  }
+}
+
+function playCard(key, source, idx, skipAnimation=false){
+  if(requestMultiplayerAction('playCard',[key,source,idx])) return;
+  if(!state || state.over || state.phase!=='battle' || state.turn!==key || state.pendingCardAction) return;
+  const p = state.players[key];
+  const list = source==='overflow' ? p.overflow : p.hand;
+  if(source==='overflow' && idx !== list.length-1) return;
+  const cardId = list[idx];
+  const card = CONFIG.cards[cardId];
+  if(!card) return;
+
+  if(!skipAnimation){
+    state.pendingCardAction=true;
+    if(animateCardToTable(key,source,idx,()=>{ if(state){ state.pendingCardAction=false; playCard(key,source,idx,true); } })) return;
+    state.pendingCardAction=false;
+  }
+
+  if(card.noRound && p.noRoundBlockedRound===state.round){
+    setLastAction(p.name+' não pode usar cartas sem gasto de round neste round por causa do Machado.');
+    render();
+    return;
+  }
+  if(card.blocksNoRoundCards && p.cardsPlayedThisTurn>0){
+    setLastAction(p.name+' só pode usar Machado se ele for a primeira carta do round.');
+    render();
+    return;
+  }
+
+  if(card.kind==='attack' || card.kind==='moneybag'){
+    list.splice(idx,1);
+    recordPlayedCard(key,cardId);
+    if(card.blocksNoRoundCards) p.noRoundBlockedRound = state.round+1;
+    resolveAttack(key, card);
+    p.cardsPlayedThisTurn++;
+    promoteOverflow(key);
+    tocarSom("damage");
+    endTurn(key);
+    return;
+  }
+  if(card.kind==='consumable_heal'){
+    return; // consumíveis não ficam na mão de batalha, não devem ser jogados por aqui
+  }
+
+  const free = p.nrUsedThisTurn===0;
+  list.splice(idx,1);
+  recordPlayedCard(key,cardId);
+  let desc = applyNRCardEffect(key, card);
+  p.nrUsedThisTurn++;
+  p.cardsPlayedThisTurn++;
+  promoteOverflow(key);
+  if(!free) desc += ' Esta é a segunda carta sem gasto de round; o turno será encerrado.';
+  setLastAction(desc);
+  tocarSom("buff");
+  checkGameOver();
+  if(card.noRound && free && !state.over){ render(); } else { endTurn(key); }
+}
+
+function promoteOverflow(key){
+  const p = state.players[key];
+  while(p.overflow.length>0 && p.hand.length<CONFIG.handLimit){
+    p.hand.push(p.overflow.pop());
+  }
+}
+
+function rollCardDamage(card){
+  const min=Math.max(0, Number(card.damage)||0);
+  const max=Math.max(min, Number(card.maxDamage)||min);
+  return min + Math.floor(Math.random()*(max-min+1));
+}
+
+function resolveAttack(key, card){
+  const attacker = state.players[key];
+  const defender = state.players[otherKey(key)];
+  let baseDamage = rollCardDamage(card);
+  if(card.kind==='moneybag' && defender.life > (Number(card.bonusThreshold)||0)){
+    baseDamage = Number(card.bonusDamageIfHigh)||baseDamage;
+  }
+  let dmg = baseDamage + (attacker.buffs.forceAmount||0);
+  if(attacker.incoming.stunNext){ dmg=0; attacker.incoming.stunNext=false; }
+  else if(attacker.incoming.weakenAmount>0){ dmg=Math.max(0,dmg-attacker.incoming.weakenAmount); attacker.incoming.weakenAmount=0; }
+
+  const ignoresShield = !!card.piercing || attacker.buffs.pierceNext;
+  if(attacker.buffs.pierceNext) attacker.buffs.pierceNext=false;
+
+  let shieldUsed=0;
+  if(!ignoresShield && defender.shield>0){ shieldUsed=Math.min(defender.shield,dmg); defender.shield-=shieldUsed; dmg-=shieldUsed; }
+  dmg = Math.max(dmg,0);
+  defender.life -= dmg;
+  if(dmg>0) triggerVisualEffect(otherKey(key),'damage');
+  const poisonApplied = dmg>0 && card.poisonChance && Math.random()<Number(card.poisonChance);
+  if(poisonApplied) defender.dots.push({type:'poison', amount:Number(card.poisonAmount)||1, trigger:'turnStart'});
+
+  const moneyMult = card.kind==='moneybag' ? (Number(card.moneyMult)||1) : 1;
+  const moneyGain = dmg * (Number(CONFIG.moneyPerDamage)||1) * moneyMult;
+  attacker.money += moneyGain;
+
+  if(attacker.buffs.vampNext){
+    attacker.life += Math.floor(dmg/2);
+    if(CONFIG.maxLifeCap!=null) attacker.life = Math.min(attacker.life, CONFIG.maxLifeCap);
+    attacker.buffs.vampNext=false;
+    triggerVisualEffect(key,'heal');
+  }
+
+  let msg = attacker.name+' ataca com '+card.name+' causando '+dmg+' de dano';
+  if(ignoresShield) msg += ' (ignora escudo)';
+  if(shieldUsed>0) msg += ' — escudo absorve '+shieldUsed;
+  if(moneyGain>0) msg += '. Ganha '+moneyGain+' de ouro';
+  if(poisonApplied) msg += '. O veneno foi aplicado';
+  setLastAction(msg+'.');
+  checkGameOver();
+}
+
+function useConsumable(key, idx){
+  if(requestMultiplayerAction('useConsumable',[key,idx])) return;
+  if(!state || state.over) return;
+  const p = state.players[key];
+  const itemId = p.consumables[idx];
+  const card = CONFIG.cards[itemId];
+  if(!card) return;
+  p.consumables.splice(idx,1);
+  recordPlayedCard(key,itemId);
+  p.life += Number(card.heal)||0;
+  if(CONFIG.maxLifeCap!=null) p.life = Math.min(p.life, CONFIG.maxLifeCap);
+  triggerVisualEffect(key,'heal');
+  setLastAction(p.name+' usa '+card.name+' (uso espontâneo) e recupera '+(Number(card.heal)||0)+' de vida.');
+  render();
+}
+
+function specialDrawInfo(key){
+  const p = state.players[key];
+  if(state.round < CONFIG.specialDrawUnlockRound) return {ok:false, reason:'disponível a partir do round '+CONFIG.specialDrawUnlockRound};
+  if(p.hand.length < CONFIG.handLimit) return {ok:false, reason:'só com a mão cheia ('+CONFIG.handLimit+')'};
+  if(p.cardsPlayedThisTurn>0) return {ok:false, reason:'só se não tiver jogado nada neste turno'};
+  if((state.round - p.lastSpecialDrawRound) < CONFIG.specialDrawCooldown) return {ok:false, reason:'disponível de novo no round '+(p.lastSpecialDrawRound+CONFIG.specialDrawCooldown)};
+  return {ok:true, reason:'pronta para usar'};
+}
+
+function specialDamage(baseDamage){
+  const value = (Number(baseDamage)||0)*1.5;
+  const integer = Math.floor(value);
+  return integer + (value-integer>=.6 ? 1 : 0);
+}
+
+function useSpecialDraw(key){
+  if(requestMultiplayerAction('useSpecialDraw',[key])) return;
+  if(!state || state.over || state.phase!=='battle' || state.turn!==key) return;
+  if(!specialDrawInfo(key).ok) return;
+  const attacker = state.players[key];
+  const defender = state.players[otherKey(key)];
+  const pool = Object.entries(CONFIG.cards).filter(([id,c])=>c.kind==='attack' && !c.shopOnly && !c.fused);
+  if(pool.length===0) return;
+  const [cid, card] = pool[Math.floor(Math.random()*pool.length)];
+
+  const specialBaseDamage = rollCardDamage(card);
+  let dmg = specialDamage(specialBaseDamage) + (attacker.buffs.forceAmount||0);
+  if(attacker.incoming.stunNext){ dmg=0; attacker.incoming.stunNext=false; }
+  else if(attacker.incoming.weakenAmount>0){ dmg=Math.max(0,dmg-attacker.incoming.weakenAmount); attacker.incoming.weakenAmount=0; }
+  const ignoresShield = !!card.piercing || attacker.buffs.pierceNext;
+  if(attacker.buffs.pierceNext) attacker.buffs.pierceNext=false;
+  let shieldUsed=0;
+  if(!ignoresShield && defender.shield>0){ shieldUsed=Math.min(defender.shield,dmg); defender.shield-=shieldUsed; dmg-=shieldUsed; }
+  dmg = Math.max(dmg,0);
+  defender.life -= dmg;
+  const moneyGain = dmg*(Number(CONFIG.moneyPerDamage)||1);
+  attacker.money += moneyGain;
+  if(attacker.buffs.vampNext){ attacker.life += Math.floor(dmg/2); attacker.buffs.vampNext=false; if(CONFIG.maxLifeCap!=null) attacker.life=Math.min(attacker.life,CONFIG.maxLifeCap); }
+
+  let selfDmg = specialBaseDamage;
+  if(!card.piercing && attacker.shield>0){ const su=Math.min(attacker.shield,selfDmg); attacker.shield-=su; selfDmg-=su; }
+  selfDmg = Math.max(selfDmg,0);
+  attacker.life -= selfDmg;
+
+  attacker.lastSpecialDrawRound = state.round;
+  attacker.cardsPlayedThisTurn++;
+  recordPlayedCard(key,cid);
+  state.specialReveal = {cid};
+  setLastAction(attacker.name+' arrisca uma carta especial de '+card.name+': '+defender.name+' sofre '+dmg+' de dano sobrecarregado, mas '+attacker.name+' sofre '+selfDmg+' de recuo.');
+  checkGameOver();
+  endTurn(key);
+}
+
+let fuseSelection = {left:null, right:null};
+function selectForFusion(key, idx){
+  if(!state || state.turn!==key || state.phase!=='battle') return;
+  const p = state.players[key];
+  if(fuseSelection[key]===idx){ fuseSelection[key]=null; render(); return; }
+  if(fuseSelection[key]!=null && p.hand[fuseSelection[key]]===p.hand[idx] && fuseSelection[key]!==idx){
+    fuseCards(key, fuseSelection[key], idx);
+    fuseSelection[key]=null;
+    return;
+  }
+  fuseSelection[key]=idx;
+  render();
+}
+
+function fuseCards(key, idxA, idxB){
+  if(requestMultiplayerAction('fuseCards',[key,idxA,idxB])) return;
+  if(!state || state.over || state.turn!==key || state.phase!=='battle') return;
+  const p = state.players[key];
+  if(idxA===idxB) return;
+  const idA=p.hand[idxA], idB=p.hand[idxB];
+  if(!idA || !idB || idA!==idB) return;
+  const base = CONFIG.cards[idA];
+  if(!base) return;
+  fusionCounter++;
+  const newId = 'fundida_'+fusionCounter;
+  const scale = v => (v==null? v : Math.ceil(v*1.5));
+  const fused = Object.assign({}, base, {
+    name: base.name+' Fundida', fused:true, rarity:'raro',
+    damage: base.kind==='attack'?scale(base.damage):base.damage,
+    shield: base.kind==='shield'?scale(base.shield):base.shield,
+    heal: base.kind==='heal'?scale(base.heal):base.heal,
+    forceBonus: base.kind==='buff_force'?scale(base.forceBonus):base.forceBonus
+  });
+  registrarCarta(newId, fused, {copiasNoBaralho:0, atualizarTela:false});
+  const hi=Math.max(idxA,idxB), lo=Math.min(idxA,idxB);
+  p.hand.splice(hi,1); p.hand.splice(lo,1);
+  p.hand.push(newId);
+  setLastAction(p.name+' funde duas cartas de '+base.name+' em uma '+fused.name+'.');
+  renderGrimoire();
+  render();
+}
+
+function passTurn(){
+  if(requestMultiplayerAction('passTurn',[])) return;
+  if(!state || state.over || state.phase!=='battle') return;
+  const p = state.players[state.turn];
+  p.life = Math.min(p.life+1, CONFIG.maxLifeCap ?? Infinity);
+  setLastAction(p.name+' passa o turno e recupera 1 de vida.');
+  endTurn(state.turn);
+}
+
+function canUsePunch(key){
+  if(!state || state.over || state.phase!=='battle' || state.turn!==key) return false;
+  const p = state.players[key];
+  const hasAttack = p.hand.some(id=>CONFIG.cards[id] && CONFIG.cards[id].kind==='attack');
+  return !hasAttack && state.round-p.lastPunchRound>=2;
+}
+
+function usePunch(key){
+  if(requestMultiplayerAction('usePunch',[key])) return;
+  if(!canUsePunch(key)) return;
+  const attacker = state.players[key];
+  const defender = state.players[otherKey(key)];
+  defender.life -= 1;
+  attacker.lastPunchRound = state.round;
+  attacker.cardsPlayedThisTurn++;
+  setLastAction(attacker.name+' usa Soco e causa 1 de dano.');
+  tocarSom("damage");
+  checkGameOver();
+  endTurn(key);
+}
+
+function endTurn(key){
+  if(!state) return;
+  if(state.over){ render(); return; }
+  state.lastTurnCards[key]=[...state.players[key].playedCardIds];
+  state.players[key].playedCardIds=[];
+  fuseSelection[key]=null;
+  if(key==='left'){
+    setTurn('right'); render();
+    if(GAME_MODE==='pve') scheduleBotTurn();
+    return;
+  }
+  endRound();
+}
+
+function scheduleBotTurn(){
+  if(botTimer) clearTimeout(botTimer);
+  botTimer = setTimeout(botTakeTurn, 650);
+}
+
+function botTakeTurn(){
+  botTimer=null;
+  if(GAME_MODE!=='pve' || !state || state.over || state.phase!=='battle' || state.turn!=='right') return;
+  const p=state.players.right;
+  const attackIndex = p.hand
+    .map((id,index)=>({id,index,card:CONFIG.cards[id]}))
+    .filter(item=>item.card && item.card.kind==='attack')
+    .sort((a,b)=>(Number(b.card.damage)||0)-(Number(a.card.damage)||0))[0]?.index;
+  if(attackIndex!=null){ playCard('right','hand',attackIndex); return; }
+  const usefulIndex = p.hand.findIndex(id=>{
+    const c=CONFIG.cards[id];
+    return c?.noRound && ((c.kind==='heal' && p.life<CONFIG.startingLife-2) || c.kind==='shield' || c.kind==='buff_force' || c.kind==='buff_pierce');
+  });
+  if(usefulIndex>=0 && p.nrUsedThisTurn===0){
+    playCard('right','hand',usefulIndex);
+    scheduleBotTurn();
+    return;
+  }
+  if(canUsePunch('right')){ usePunch('right'); return; }
+  passTurn();
+}
+
+function tickDots(){
+  for(const key of ['left','right']){
+    const p = state.players[key];
+    for(let i=p.dots.length-1;i>=0;i--){
+      const d = p.dots[i];
+      if(d.trigger==='turnStart') continue;
+      if(d.type==='poison'){ p.life -= d.amount; setLastAction(p.name+' sofre '+d.amount+' de veneno.'); }
+      else if(d.type==='regen'){ p.life += d.amount; if(CONFIG.maxLifeCap!=null) p.life=Math.min(p.life,CONFIG.maxLifeCap); setLastAction(p.name+' regenera '+d.amount+' de vida.'); }
+      d.roundsLeft -= 1;
+      if(d.roundsLeft<=0) p.dots.splice(i,1);
+    }
+  }
+  checkGameOver();
+}
+function decayForceBuffs(){
+  for(const key of ['left','right']){
+    const p = state.players[key];
+    if(p.buffs.forceRoundsLeft>0){
+      p.buffs.forceRoundsLeft -= 1;
+      if(p.buffs.forceRoundsLeft<=0) p.buffs.forceAmount=0;
+    }
+  }
+}
+
+function endRound(){
+  if(state.round >= CONFIG.normalRounds+1){
+    const overtimeRound = state.round - CONFIG.normalRounds;
+    const dmg = Math.floor((overtimeRound-1)/CONFIG.overtimeIncreaseEvery) + CONFIG.overtimeStartDamage;
+    state.players.left.life -= dmg;
+    state.players.right.life -= dmg;
+    setLastAction('Prorrogação: ambos sofrem '+dmg+' de dano fixo (ignora escudo).');
+    tocarSom("damage");
+    checkGameOver();
+  }
+  if(state.over){ render(); return; }
+  tickDots();
+  if(state.over){ render(); return; }
+  decayForceBuffs();
+  if(CONFIG.shopInterval>0 && state.round % CONFIG.shopInterval === 0){
+    openShop();
+    return;
+  }
+  continueAfterShop();
+}
+
+function iniciarEscolhaDeRound(key){
+  const p = state.players[key];
+  promoteOverflow(key);
+  if(p.hand.length>=CONFIG.handLimit) return false;
+  const honor = p.hand.length===0;
+  const optionCount = honor?3:2;
+  const picks = honor?2:1;
+  setLastAction(honor ? 'Honra ativada: '+p.name+' escolhe 2 entre 3 cartas.' : p.name+' escolhe 1 entre 2 cartas.');
+  iniciarEscolha('round', key, optionCount, picks);
+  return true;
+}
+
+function continueAfterShop(){
+  state.round += 1;
+  if(state.round<=3){
+    promoteOverflow('left');
+    promoteOverflow('right');
+    if(iniciarEscolhaDeRound('left') || iniciarEscolhaDeRound('right')) return;
+  }
+  for(const key of ['left','right']){
+    const p = state.players[key];
+    promoteOverflow(key);
+    const need = p.hand.length===0 ? CONFIG.drawWhenHandEmpty : CONFIG.drawPerRound;
+    const space = CONFIG.handLimit - p.hand.length;
+    if(space>0) drawCards(key, Math.min(need, space));
+  }
+  const starter = state.justClosedShop ? choosePostShopStarter() : (GAME_MODE==='multiplayer'?MP_SESSION.first:'left');
+  state.justClosedShop=false;
+  setTurn(starter);
+  setLastAction('Round '+state.round+' começa.');
+  render();
+}
+
+/* ---------------------------- LOJA ---------------------------- */
+
+function weightedShopPool(){ return Object.entries(CONFIG.cards).filter(([id,c])=>(c.inShop || c.shopOnly) && !c.fused); }
+function weightedPick(pool){
+  const w = {comum:5, incomum:3, raro:1};
+  const weightFor = c => (w[c.rarity]||3)*(c.kind==='attack'?.35:1);
+  const total = pool.reduce((s,[id,c])=>s+weightFor(c),0);
+  let r = Math.random()*total;
+  for(const [id,c] of pool){ r -= weightFor(c); if(r<=0) return id; }
+  return pool[pool.length-1][0];
+}
+function rollShopSlots(){
+  const pool = weightedShopPool();
+  if(pool.length===0) return [];
+  const slots=[];
+  for(let i=0;i<CONFIG.shopSize;i++) slots.push(weightedPick(pool));
+  return slots;
+}
+function openShop(){
+  const L=state.players.left, R=state.players.right;
+  const starter = L.life<=R.life ? 'left' : 'right';
+  state.phase='shop';
+  L.shield=0; R.shield=0;
+  state.shop = {slots:rollShopSlots(), turn:starter, passStreak:0, soldBy:{left:false,right:false}};
+  setLastAction('A loja abre! Vez de '+state.players[starter].name+'.');
+  tocarSom("shopopen");
+  render();
+  if(GAME_MODE==='pve' && starter==='right') scheduleBotShopTurn();
+}
+function buyFromShop(slotIdx){
+  if(requestMultiplayerAction('buyFromShop',[slotIdx])) return;
+
+  tocarSom("buy");
+
+  if(!state.shop) return;
+  const key = state.shop.turn;
+  const p = state.players[key];
+  const cid = state.shop.slots[slotIdx];
+  const card = CONFIG.cards[cid];
+  if(!card) return;
+  const price = Number(card.price)||0;
+  if(p.money < price) return;
+  p.money -= price;
+  if(card.kind==='consumable_heal'){
+    p.life=Math.min(p.life+(Number(card.heal)||0), CONFIG.maxLifeCap??Infinity);
+    triggerVisualEffect(key,'heal');
+  }
+  else if(p.hand.length < CONFIG.handLimit){ p.hand.push(cid); }
+  else { p.overflow.push(cid); }
+  state.shop.slots[slotIdx] = null;
+  state.shop.passStreak = 0;
+  setLastAction(card.kind==='consumable_heal' ? p.name+' compra '+card.name+' e recupera '+(Number(card.heal)||0)+' de vida imediatamente.' : p.name+' compra '+card.name+' na loja.');
+  switchShopTurn();
+}
+function rerollShop(){
+  if(requestMultiplayerAction('rerollShop',[])) return;
+  if(!state.shop) return;
+  const key = state.shop.turn;
+  const p = state.players[key];
+  const cost = Number(CONFIG.shopRerollCost)||0;
+  if(p.money < cost) return;
+  p.money -= cost;
+  state.shop.slots = rollShopSlots();
+  state.shop.passStreak = 0;
+  setLastAction(p.name+' rerola a loja.');
+  tocarSom("reroll");
+  switchShopTurn();
+}
+function sellValue(card){ return card.rarity==='raro'?3:card.rarity==='incomum'?2:1; }
+function sellSelectedShopCard(){
+  if(requestMultiplayerAction('sellSelectedShopCard',[])) return;
+  if(!state.shop) return;
+  const key=state.shop.turn;
+  if(state.shop.soldBy[key]) return;
+  const [source, rawIndex] = byId('shopSellCard').value.split('|');
+  const list = source==='overflow' ? state.players[key].overflow : state.players[key].hand;
+  const idx=Number(rawIndex), card=CONFIG.cards[list[idx]];
+  if(!card) return;
+  list.splice(idx,1);
+  state.players[key].money += sellValue(card);
+  state.shop.soldBy[key]=true;
+  setLastAction(state.players[key].name+' vende '+card.name+' por '+sellValue(card)+' ouro.');
+  tocarSom("sell");
+  render();
+}
+function leaveShopTurn(){
+  if(requestMultiplayerAction('leaveShopTurn',[])) return;
+  if(!state.shop) return;
+  const p = state.players[state.shop.turn];
+  state.shop.passStreak++;
+  setLastAction(p.name+' sai da loja.');
+  if(state.shop.passStreak>=2){ closeShop(); } else { switchShopTurn(); }
+}
+function switchShopTurn(){
+  state.shop.turn = otherKey(state.shop.turn);
+  render();
+  tocarSom("shopopen");
+  if(GAME_MODE==='pve' && state.shop.turn==='right') scheduleBotShopTurn();
+}
+
+function scheduleBotShopTurn(){
+  if(botTimer) clearTimeout(botTimer);
+  botTimer=setTimeout(botShopTurn, 600);
+}
+
+function botShopTurn(){
+  botTimer=null;
+  if(GAME_MODE!=='pve' || !state?.shop || state.shop.turn!=='right') return;
+  const p=state.players.right;
+  const candidate=state.shop.slots
+    .map((id,index)=>({id,index,card:CONFIG.cards[id]}))
+    .filter(item=>item.id && p.money>=(Number(item.card.price)||0))
+    .sort((a,b)=>((Number(b.card.damage)||0)+(Number(b.card.heal)||0)+(Number(b.card.shield)||0))-((Number(a.card.damage)||0)+(Number(a.card.heal)||0)+(Number(a.card.shield)||0)))[0];
+  if(candidate){ buyFromShop(candidate.index); return; }
+  leaveShopTurn();
+}
+function closeShop(){
+  state.phase='battle'; state.shop=null; state.justClosedShop=true;
+  setLastAction('A loja fecha.');
+  tocarSom("shopopen");
+  continueAfterShop();
+}
+
+function choosePostShopStarter(){
+  const L=state.players.left, R=state.players.right;
+  if(L.life!==R.life) return L.life<R.life?'left':'right';
+  if(L.shield!==R.shield) return L.shield<R.shield?'left':'right';
+  return Math.random()<.5?'left':'right';
+}
+
+/* ---------------------------- DRAG & DROP ---------------------------- */
+
+function handleDragStart(ev, key, source, idx){
+  dragData = {key, source, idx};
+  try{ ev.dataTransfer.setData('text/plain', key+':'+source+':'+idx); }catch(e){}
+  ev.dataTransfer.effectAllowed = 'move';
+}
+function handleTableDrop(ev){
+  ev.preventDefault();
+  ev.currentTarget.classList.remove('drag-over');
+  if(!dragData) return;
+  const {key, source, idx} = dragData; dragData=null;
+  if(state.turn!==key || state.phase!=='battle') return;
+  tocarSom("card");
+  playCard(key, source, idx);
+}
+function handleCardDrop(ev, targetKey, targetIdx){
+  ev.preventDefault(); ev.stopPropagation();
+  if(!dragData) return;
+  const {key, source, idx} = dragData; dragData=null;
+  if(source!=='hand' || key!==targetKey || idx===targetIdx) return;
+  fuseCards(key, idx, targetIdx);
+}
+
+/* ---------------------------- RENDER ---------------------------- */
+
+function cardFrontInner(cardId, instantSpent=false){
+  const c = CONFIG.cards[cardId];
+  if(!c) return '';
+  const desc = cardShortDescription(c);
+  const fullDesc = cardDescription(c);
+  return `
+      <div class="card-corner">${iconFor(c)}</div>
+      ${c.noRound?`<div class="instant-badge ${instantSpent?'spent':''}" title="${instantSpent?'Esta carta encerrará o turno':'Não gasta o round'}">${ICON_INSTANT}</div>`:''}
+      <div class="card-center-icon">${iconFor(c)}</div>
+      <div class="card-text" title="${fullDesc}">
+        <div class="card-name">${c.name}</div>
+        <div class="card-type">${c.type||''}</div>
+        <div class="card-desc">${desc}</div>
+      </div>
+      <div class="rarity-pips">${rarityPips(c.rarity)}</div>
+  `;
+}
+
+function cardHTML(key, source, cardId, idx, playable, selected){
+  const c = CONFIG.cards[cardId];
+  if(!c) return '';
+  const p = state && state.players[key];
+  const instantSpent = !!(c.noRound && p && state.phase==='battle' && state.turn===key && (p.nrUsedThisTurn>0 || p.noRoundBlockedRound===state.round));
+  const visiblyActive = playable || (GAME_MODE==='pve' && key==='right');
+  const extraClass = (c.fused?'fused-card ':'')+(selected?'selected ':'')+(visiblyActive?'':'small-disabled ');
+  const dragAttrs = playable ? `draggable="true" ondragstart="handleDragStart(event,'${key}','${source}',${idx})"` : '';
+  const dropAttrs = (playable && source==='hand') ? `ondragover="event.preventDefault()" ondrop="handleCardDrop(event,'${key}',${idx})"` : '';
+  const clickAttr = (playable && source==='hand') ? `onclick="selectForFusion('${key}',${idx})"` : '';
+  return `<div class="card ${extraClass}" data-card-owner="${key}" data-card-source="${source}" data-card-index="${idx}" title="${cardDescription(c)}" ${dragAttrs} ${dropAttrs} ${clickAttr}>
+      ${cardFrontInner(cardId, instantSpent)}
+    </div>`;
+}
+
+function playerColHTML(key){
+  const p = state.players[key];
+  const effect=state.visualEffects?.[key]||'';
+  const isTurn = state.turn===key && !state.over && state.phase==='battle';
+  const isMultiplayerOwner = GAME_MODE!=='multiplayer' || (MP_ROLE==='host' ? key==='left' : key==='right');
+  const humanTurn = isTurn && isMultiplayerOwner && !(GAME_MODE==='pve' && key==='right');
+  const lifePct = Math.max(0, Math.min(100, (p.life/CONFIG.startingLife)*100));
+  const buffs=[];
+  if(p.buffs.forceRoundsLeft>0) buffs.push('+'+p.buffs.forceAmount+' força ('+p.buffs.forceRoundsLeft+')');
+  if(p.buffs.pierceNext) buffs.push('próx. ataque perfura');
+  if(p.buffs.vampNext) buffs.push('próx. ataque cura');
+  if(p.incoming.stunNext) buffs.push('atordoado');
+  if(p.incoming.weakenAmount>0) buffs.push('enfraquecido -'+p.incoming.weakenAmount);
+  if(p.noRoundBlockedRound===state.round+1) buffs.push('Machado: sem cartas grátis no próximo round');
+  p.dots.forEach(d=>buffs.push((d.type==='poison'?'veneno ':'regen ')+d.amount+' ('+d.roundsLeft+')'));
+
+  const handCards = p.hand.map((cid,idx)=>cardHTML(key,'hand',cid,idx,humanTurn,fuseSelection[key]===idx)).join('') || '<div class="empty-hand">Mão vazia.</div>';
+
+  const sd = specialDrawInfo(key);
+  const overflowHTML = p.overflow.length>0 ? `
+    <div class="overflow-row">
+      <div class="overflow-stack">${p.overflow.slice(-3).map((_,i)=>`<div class="mini-card" style="transform:translate(${i*2}px,${-i*2}px)"></div>`).join('')}</div>
+      <div class="overflow-count">fila especial: ${p.overflow.length} carta(s) — só a do topo pode ser usada</div>
+      ${humanTurn ? cardHTML(key,'overflow',p.overflow[p.overflow.length-1],p.overflow.length-1,true,false) : ''}
+    </div>` : '';
+
+  const consumablesHTML = p.consumables.length>0 ? `
+    <div class="consumables-row">${p.consumables.map((cid,idx)=>`
+      <div class="consumable-chip">${iconFor(CONFIG.cards[cid])}<span>${CONFIG.cards[cid].name}</span>${GAME_MODE==='pve'&&key==='right'?'':`<button class="btn-small" onclick="useConsumable('${key}',${idx})">Usar</button>`}</div>
+    `).join('')}</div>` : '';
+
+  return `<div class="player-col ${isTurn?'active-turn':''} ${p.life<=0?'defeated':''}">
+    <div class="player-head">
+      <div class="player-identity"><div class="player-name title-font">${p.name}</div>${GAME_MODE==='pve'?`<div class="pve-lives">Vidas: ${key==='left'?PVE_SESSION.leftLives:PVE_SESSION.botLives}</div>`:GAME_MODE==='multiplayer'?`<div class="pve-lives">Vidas: ${key==='left'?MP_SESSION.hostLives:MP_SESSION.guestLives}</div>`:''}</div>
+      ${isTurn?'<div class="turn-tag">SEU TURNO</div>':''}
+    </div>
+    <div class="stat-row"><div class="life-num mono ${effect==='damage'?'fx-damage':effect==='heal'?'fx-heal':''}">${p.life}</div><div class="life-bar"><div class="life-fill" style="width:${lifePct}%"></div></div></div>
+    <div class="mini-row ${effect==='shield'?'fx-shield':''}">${ICONS.escudo} Escudo: ${p.shield}</div>
+    <div class="mini-row gold">${ICONS.moeda} Ouro: ${p.money}</div>
+    <div class="buffs-row ${effect==='buff'?'fx-buff':''}">${buffs.map(b=>`<span class="buff-chip">${b}</span>`).join('')}</div>
+    <div class="hand-label">Mão (${p.hand.length}/${CONFIG.handLimit})</div>
+    <div class="hand">${handCards}</div>
+    ${overflowHTML}
+    ${consumablesHTML}
+    ${humanTurn?`<div class="turn-controls">
+        <button class="btn-brass" onclick="passTurn()">Encerrar turno / Passar</button>
+        <button class="btn-small" ${canUsePunch(key)?'':'disabled'} onclick="usePunch('${key}')">Soco (1 dano)</button>
+        <button class="btn-purple" ${sd.ok?'':'disabled'} onclick="useSpecialDraw('${key}')">Compra especial</button>
+        <div class="sd-hint">${sd.reason}</div>
+      </div>`:''}
+  </div>`;
+}
+
+function centerTableHTML(){
+  let statusText='', sub='';
+  if(state.over){
+    statusText = state.winner==='empate' ? 'Empate — ambos caíram juntos.' : state.players[state.winner].name+' venceu!';
+  } else if(state.phase==='choice'){
+    statusText = 'ESCOLHA UMA CARTA';
+    sub = state.players[state.choice.key].name+' escolhe 1 entre '+state.choice.options.length+' cartas';
+  } else if(state.phase==='shop'){
+    statusText = 'LOJA ABERTA';
+    sub = 'vez de '+state.players[state.shop.turn].name+' comprar, rerolar ou sair';
+  } else if(state.round <= CONFIG.normalRounds){
+    statusText = 'Round '+state.round+' de '+CONFIG.normalRounds;
+    sub = 'vez de '+state.players[state.turn].name;
+  } else {
+    statusText = 'PRORROGAÇÃO · Round '+state.round;
+    sub = 'vez de '+state.players[state.turn].name;
+  }
+  if(GAME_MODE==='multiplayer' && state.phase!=='choice' && !state.over){
+    const localKey=MP_ROLE==='host'?'left':'right';
+    if((state.phase==='battle' && state.turn!==localKey) || (state.phase==='shop' && state.shop.turn!==localKey)){
+      statusText='VEZ DO OPONENTE';
+      sub='aguarde '+state.players[state.phase==='shop'?state.shop.turn:state.turn].name;
+    }
+  }
+  const stackN = Math.min(3, Math.ceil(state.deck.length/7));
+  let stackCards='';
+  for(let i=0;i<Math.max(stackN, state.deck.length>0?1:0);i++){
+    stackCards += `<div class="card card-back" style="transform:translate(${i*3}px,${-i*3}px);"><div class="card-back-pattern"></div></div>`;
+  }
+  const revealHTML = state.specialReveal ? `<div class="reveal-purple">${cardHTML('','preview',state.specialReveal.cid,-1,false,false).replace('card small-disabled','card purple-card')}</div>` : '';
+  const botIsChoosing = state.choice && GAME_MODE==='pve' && state.choice.key==='right';
+  const mpOtherChoosing = state.choice && GAME_MODE==='multiplayer' && ((MP_ROLE==='host' && state.choice.key==='right') || (MP_ROLE==='guest' && state.choice.key==='left'));
+  const choiceHTML = state.choice ? (botIsChoosing
+    ? `<div class="table-hint" style="margin-top:12px;">Bot está escolhendo uma carta…</div>`
+    : mpOtherChoosing ? `<div class="table-hint" style="margin-top:12px;">Aguardando a escolha do oponente…</div>`
+    : `<div class="hand" style="justify-content:center; margin-top:12px;">${state.choice.options.map(cid=>`<div class="card">${cardFrontInner(cid)}<button class="card-play-btn" onclick="escolherCarta('${cid}')">Escolher</button></div>`).join('')}</div>`) : '';
+  const localKey=GAME_MODE==='multiplayer'?(MP_ROLE==='host'?'left':'right'):'left';
+  const opponentKey=otherKey(localKey);
+  const historyCards=state.lastTurnCards?.[opponentKey]||[];
+  const historyHTML=state.showHistory?`<div class="history-panel"><button class="btn-small" onclick="toggleLastTurnCards()">Fechar</button><div class="hand-label">Cartas usadas por ${state.players[opponentKey].name} no último turno</div>${historyCards.length?`<div class="hand">${historyCards.map(id=>`<div class="card">${cardFrontInner(id)}</div>`).join('')}</div>`:'<div class="history-empty">Nenhuma carta usada no último turno.</div>'}</div>`:'';
+
+  return `<div class="center-col">
+    <div class="table-zone" id="tableZone" ondragover="event.preventDefault(); this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleTableDrop(event)">
+      <div class="deck-stack" id="deckStack" onclick="toggleLastTurnCards()" title="Ver cartas usadas pelo oponente">${stackCards}</div>
+      <div class="deck-count mono">${state.deck.length} cartas no baralho</div>
+      <div class="table-hint">arraste uma carta da mão até aqui para jogar</div>
+      ${revealHTML}
+      ${choiceHTML}
+      ${historyHTML}
+    </div>
+    <div class="status-banner">${statusText}${sub?`<span class="sub">${sub}</span>`:''}</div>
+  </div>`;
+}
+
+function shopSlotHTML(idx){
+  const cid = state.shop.slots[idx];
+  if(!cid) return `<div class="shop-empty-slot">vendida</div>`;
+  const card = CONFIG.cards[cid];
+  const key = state.shop.turn;
+  const p = state.players[key];
+  const canBuy = p.money >= (Number(card.price)||0);
+  return `<div class="shop-slot">
+      <div class="card ${card.shopOnly?'purple-card':''}">${cardFrontInner(cid)}</div>
+      <div class="shop-price mono">${card.price} ouro</div>
+      <button class="btn-gold" ${canBuy?'':'disabled'} onclick="buyFromShop(${idx})" style="width:100%;">Comprar</button>
+    </div>`;
+}
+
+function shopPanelHTML(){
+  if(state.phase!=='shop' || !state.shop) return '';
+  const key = state.shop.turn;
+  const p = state.players[key];
+  const rerollCost = Number(CONFIG.shopRerollCost)||0;
+  const canReroll = p.money >= rerollCost;
+  const sellOptions = [...p.hand.map((id,i)=>({id,i,source:'hand'})), ...p.overflow.map((id,i)=>({id,i,source:'overflow'}))];
+  const botTurn = GAME_MODE==='pve' && key==='right';
+  const mpOtherTurn = GAME_MODE==='multiplayer' && ((MP_ROLE==='host'&&key==='right')||(MP_ROLE==='guest'&&key==='left'));
+  return `<div class="shop-head">
+      <div class="shop-title title-font">Loja — vez de ${p.name}</div>
+      <div class="mono" style="color:var(--gold);">${ICONS.moeda ? '' : ''}Ouro disponível: ${p.money}</div>
+    </div>
+    <div class="shop-slots">${botTurn||mpOtherTurn ? state.shop.slots.map(cid=>cid?`<div class="shop-slot"><div class="card">${cardFrontInner(cid)}</div></div>`:'').join('') : state.shop.slots.map((_,i)=>shopSlotHTML(i)).join('')}</div>
+    ${botTurn?'<div class="sd-hint">Bot está avaliando a loja…</div>':mpOtherTurn?'<div class="sd-hint">Vez do oponente na loja…</div>':`<div class="shop-actions">
+      <button class="btn-gold" ${canReroll?'':'disabled'} onclick="rerollShop()">Rerolar (${rerollCost} ouro)</button>
+      ${sellOptions.length?`<select id="shopSellCard" ${state.shop.soldBy[key]?'disabled':''}>${sellOptions.map(item=>`<option value="${item.source}|${item.i}">${CONFIG.cards[item.id].name} (${sellValue(CONFIG.cards[item.id])} ouro)</option>`).join('')}</select><button class="btn-small" ${state.shop.soldBy[key]?'disabled':''} onclick="sellSelectedShopCard()">Vender 1 carta</button>`:'<span class="sd-hint">Sem cartas para vender</span>'}
+      <button class="btn-ghost" onclick="leaveShopTurn()">Sair da loja</button>
+    </div>`}`;
+}
+
+function sealTrackHTML(){
+  let seals='';
+  const totalToShow = Math.max(CONFIG.normalRounds, state.round);
+  for(let i=1;i<=CONFIG.normalRounds;i++){
+    const isShop = CONFIG.shopInterval>0 && i % CONFIG.shopInterval === 0;
+    const cls = i<state.round?'done':(i===state.round?'current':'');
+    seals += `<div class="seal mono ${cls} ${isShop?'shop':''}">${i}</div>`;
+  }
+  let html = `<div class="seals">${seals}</div>`;
+  if(state.round > CONFIG.normalRounds){
+    const overtimeRound = state.round - CONFIG.normalRounds;
+    const dmg = Math.floor((overtimeRound-1)/CONFIG.overtimeIncreaseEvery) + CONFIG.overtimeStartDamage;
+    html += `<div class="overtime-strip"><div class="blip"></div><span>PRORROGAÇÃO — dano fixo atual: ${dmg}/round</span></div>`;
+  }
+  return html;
+}
+
+function legendHTML(){
+  return `<div class="item">${ICON_INSTANT}<span>não gasta o round (só a 1ª vez por turno)</span></div>
+    <div class="item"><span class="mono">● ○ ○</span><span>comum</span></div>
+    <div class="item"><span class="mono">● ● ○</span><span>incomum</span></div>
+    <div class="item"><span class="mono">● ● ●</span><span>raro</span></div>
+    <div class="item">$ <span>round de loja</span></div>`;
+}
+
+function render(){
+  byId('sealTrack').innerHTML = sealTrackHTML();
+  byId('lastActionBox').innerHTML = '<b>Última ação:</b> '+(state.lastAction||'—');
+  byId('board').innerHTML = playerColHTML('left') + centerTableHTML() + playerColHTML('right');
+  const shopEl = byId('shopPanel');
+  if(state.phase==='shop'){ shopEl.style.display='block'; shopEl.innerHTML = shopPanelHTML(); }
+  else { shopEl.style.display='none'; shopEl.innerHTML=''; }
+  if(state.specialReveal){
+    setTimeout(()=>{ if(state){ state.specialReveal=null; render(); } }, 2600);
+  }
+  byId('grimoireBody').innerHTML = grimoireTextHTML();
+  renderPveResult();
+  if(GAME_MODE==='multiplayer' && MP_ROLE==='host' && MP_CONN?.open) mpSend({type:'snapshot',state,session:MP_SESSION,config:CONFIG});
+}
+
+function renderPveResult(){
+  let el=byId('pveResult');
+  if(!el){ el=document.createElement('div'); el.id='pveResult'; document.body.appendChild(el); }
+  const result=GAME_MODE==='pve'?state?.pveResult:GAME_MODE==='multiplayer'?state?.mpResult:null;
+  if(!result){ el.style.display='none'; return; }
+  el.style.display='flex';
+  const action=GAME_MODE==='pve'?'continuePve()':'continueMultiplayer()';
+  const label=result.seriesOver?(GAME_MODE==='pve'?'Voltar à preparação':'Voltar ao lobby'):'Próxima partida';
+  const button=GAME_MODE==='multiplayer'&&MP_ROLE==='guest'?'<div class="sd-hint">Aguardando o host iniciar a próxima partida.</div>':`<button class="btn-brass" onclick="${action}">${label}</button>`;
+  el.innerHTML=`<div class="result-dialog"><h2>${result.title}</h2><p>${result.text}</p>${button}</div>`;
+}
+
+function grimoireTextHTML(){
+  return `<p>Vida inicial: <b>${CONFIG.startingLife}</b> · Ouro inicial: <b>${CONFIG.startingMoney}</b> · Limite de mão: <b>${CONFIG.handLimit}</b> cartas.</p>
+    <p>A primeira carta que não gasta o round pode ser usada de graça; a segunda encerra o turno. O Machado bloqueia essa vantagem somente no próximo round do jogador que o utilizou.</p>
+    <p>Rounds normais: <b>${CONFIG.normalRounds}</b>. A partir do round ${CONFIG.normalRounds+1} começa a prorrogação: dano fixo (ignora escudo) começando em <b>${CONFIG.overtimeStartDamage}</b>, subindo +1 a cada <b>${CONFIG.overtimeIncreaseEvery}</b> rounds.</p>
+    <p>A cada <b>${CONFIG.shopInterval}</b> rounds abre uma loja de ${CONFIG.shopSize} cartas (reroll por ${CONFIG.shopRerollCost} ouro). Quem está perdendo compra primeiro; a loja fecha quando os dois saem em sequência.</p>
+    <p>A partir do round <b>${CONFIG.specialDrawUnlockRound}</b>, com a mão cheia e sem ter jogado nada no turno, dá pra arriscar uma <b>carta especial</b> (1x a cada ${CONFIG.specialDrawCooldown} rounds): o dano usa 1.5x do dano base com o arredondamento especial, mas você sofre o dano normal da carta de volta.</p>
+    <p>Duas cartas iguais na mão podem ser fundidas (clique nas duas) — o status vira x + 0.5x, arredondado para cima.</p>`;
+}
+
+/* ---------------------------- GRIMÓRIO DE CARTAS ---------------------------- */
+
+function renderGrimoire(){
+  const entries = Object.entries(CONFIG.cards).filter(([id,c])=>!c.fused);
+  byId('cardGrimoire').innerHTML = entries.map(([id,c])=>`
+    <div class="grimoire-card">
+      <div class="card">${cardFrontInner(id)}</div>
+      <div class="grimoire-caption">${c.shopOnly?'exclusiva da loja · ':''}${c.rarity||'comum'}</div>
+    </div>`).join('');
+}
+
+/* ---------------------------- ADMIN ---------------------------- */
+
+function renderAdminPanel(){
+  const battleCards = Object.entries(CONFIG.cards).filter(([id,c])=>!c.fused && !c.shopOnly);
+  const allBaseCards = Object.entries(CONFIG.cards).filter(([id,c])=>!c.fused);
+
+  const cfgFields = [
+    ['startingLife','Vida inicial'], ['startingMoney','Ouro inicial'], ['handLimit','Limite de mão'],
+    ['normalRounds','Rounds normais'], ['overtimeStartDamage','Dano prorrogação (início)'], ['overtimeIncreaseEvery','Prorrogação sobe a cada'],
+    ['drawPerRound','Compra por round'], ['drawWhenHandEmpty','Compra se mão vazia'], ['moneyPerDamage','Ouro por dano'],
+    ['shopInterval','Loja a cada N rounds'], ['shopSize','Cartas na loja'], ['shopRerollCost','Custo do reroll'],
+    ['specialDrawUnlockRound','Compra especial libera no round'], ['specialDrawCooldown','Compra especial — cooldown']
+  ];
+  const cfgHTML = cfgFields.map(([id,label])=>`
+    <div class="admin-field"><label>${label}</label><input type="number" id="cfg_${id}" value="${CONFIG[id]!=null?CONFIG[id]:0}"></div>
+  `).join('');
+  const pveLivesHTML = GAME_MODE==='pve' ? `<div class="admin-field"><label>Vidas da série PvE</label><input type="number" min="1" id="cfg_pveLives" value="${PVE_SESSION?.startingLives||PVE_DEFAULTS.startingLives}"></div>` : '';
+
+  const deckHTML = `<table class="admin-table"><tr><th>Carta</th><th>Cópias no baralho</th></tr>
+    ${battleCards.map(([id,c])=>`<tr><td>${c.name}</td><td><input type="number" min="0" data-deckcount="${id}" value="${c.deckCopies||0}"></td></tr>`).join('')}
+    </table>`;
+
+  const statRows = allBaseCards.map(([id,c])=>{
+    let fields='';
+    if(c.kind==='attack'||c.kind==='moneybag') fields += `<td>dano <input type="number" data-cardfield="${id}|damage" value="${c.damage||0}"></td>`;
+    if(c.kind==='shield') fields += `<td>escudo <input type="number" data-cardfield="${id}|shield" value="${c.shield||0}"></td>`;
+    if(c.kind==='heal'||c.kind==='consumable_heal') fields += `<td>cura <input type="number" data-cardfield="${id}|heal" value="${c.heal||0}"></td>`;
+    if(c.kind==='buff_force') fields += `<td>força <input type="number" data-cardfield="${id}|forceBonus" value="${c.forceBonus||0}"> / <input type="number" data-cardfield="${id}|duration" value="${c.duration||0}"> rounds</td>`;
+    if(!fields) fields = '<td>—</td>';
+    const priceField = (c.inShop||c.shopOnly) ? `<input type="number" data-cardfield="${id}|price" value="${c.price||0}">` : '—';
+    return `<tr><td>${c.name}</td><td class="mono">${c.kind}</td>${fields}<td>
+        <select data-cardfield="${id}|rarity"><option value="comum" ${c.rarity==='comum'?'selected':''}>comum</option><option value="incomum" ${c.rarity==='incomum'?'selected':''}>incomum</option><option value="raro" ${c.rarity==='raro'?'selected':''}>raro</option></select>
+      </td><td>${priceField}</td></tr>`;
+  }).join('');
+  const statHTML = `<table class="admin-table"><tr><th>Carta</th><th>Tipo</th><th>Status</th><th>Raridade</th><th>Preço loja</th></tr>${statRows}</table>`;
+
+  const cardOptions = allBaseCards.map(([id,c])=>`<option value="${id}">${c.name}</option>`).join('');
+
+  byId('adminRoot').innerHTML = `
+    <div class="subhead">Ajustes ao vivo (aplicam agora, sem reiniciar)</div>
+    <div class="live-row">
+      <div class="admin-field"><label>Vida — Esquerda</label><input type="number" id="live_life_left" value="${state?state.players.left.life:CONFIG.startingLife}"><button class="btn-small" onclick="liveSetLife('left')">Definir</button></div>
+      <div class="admin-field"><label>Vida — Direita</label><input type="number" id="live_life_right" value="${state?state.players.right.life:CONFIG.startingLife}"><button class="btn-small" onclick="liveSetLife('right')">Definir</button></div>
+      <div class="admin-field"><label>Ouro — Esquerda</label><input type="number" id="live_money_left" value="${state?state.players.left.money:CONFIG.startingMoney}"><button class="btn-small" onclick="liveSetMoney('left')">Definir</button></div>
+      <div class="admin-field"><label>Ouro — Direita</label><input type="number" id="live_money_right" value="${state?state.players.right.money:CONFIG.startingMoney}"><button class="btn-small" onclick="liveSetMoney('right')">Definir</button></div>
+    </div>
+    <div class="live-row">
+      <div class="admin-field"><label>Adicionar carta à mão</label><select id="live_addcard_player"><option value="left">Esquerda</option><option value="right">Direita</option></select></div>
+      <div class="admin-field"><label>&nbsp;</label><select id="live_addcard_card">${cardOptions}</select></div>
+      <div class="admin-field"><label>&nbsp;</label><button class="btn-small" onclick="liveAddCard()">Adicionar</button></div>
+    </div>
+
+    <div class="subhead">Configurações padrão (aplicam ao reiniciar a partida)</div>
+    <div class="admin-grid">${cfgHTML}${pveLivesHTML}</div>
+
+    <div class="subhead">Baralho de batalha (quantidade de cada carta)</div>
+    ${deckHTML}
+
+    <div class="subhead">Estatísticas das cartas</div>
+    ${statHTML}
+
+    <button class="btn-gold" onclick="applyAdminChanges()">Aplicar e reiniciar partida</button>
+    <div class="msg-line" id="adminMsg"></div>
+  `;
+}
+
+function applyAdminChanges(){
+  try{
+    ['startingLife','startingMoney','handLimit','normalRounds','overtimeStartDamage','overtimeIncreaseEvery','drawPerRound','drawWhenHandEmpty','moneyPerDamage','shopInterval','shopSize','shopRerollCost','specialDrawUnlockRound','specialDrawCooldown'].forEach(id=>{
+      const el = byId('cfg_'+id);
+      if(el){ const v=Number(el.value); if(!isNaN(v)) CONFIG[id]=v; }
+    });
+    CONFIG.startingHandSize = CONFIG.handLimit;
+    document.querySelectorAll('[data-deckcount]').forEach(inp=>{
+      const id = inp.dataset.deckcount;
+      const v = Math.max(0, parseInt(inp.value)||0);
+      if(CONFIG.cards[id]){
+        CONFIG.cards[id].deckCopies = v;
+        if(v>0) CONFIG.cards[id].source = 'deck';
+      }
+    });
+    document.querySelectorAll('[data-cardfield]').forEach(inp=>{
+      const [id, field] = inp.dataset.cardfield.split('|');
+      if(!CONFIG.cards[id]) return;
+      if(field==='rarity') CONFIG.cards[id].rarity = inp.value;
+      else CONFIG.cards[id][field] = Number(inp.value)||0;
+    });
+    if(GAME_MODE==='pve'){
+      const livesEl=byId('cfg_pveLives');
+      if(livesEl) PVE_DEFAULTS.startingLives=Math.max(1, Number(livesEl.value)||3);
+    }
+    if(GAME_MODE==='pve' && !PVE_SESSION){
+      renderAdminPanel(); renderGrimoire(); renderPveLobby();
+      byId('adminMsg').textContent = 'Configurações do PvE salvas. Inicie a série quando estiver pronto.';
+      return;
+    }
+    if(GAME_MODE==='multiplayer' && !MP_MATCH_STARTED){
+      renderAdminPanel(); renderGrimoire(); renderCreatorForm(); mpSendLobby();
+      byId('adminMsg').textContent = 'Configurações da sala salvas e enviadas ao guest.';
+      return;
+    }
+    initGame();
+    renderAdminPanel();
+    renderGrimoire();
+    byId('adminMsg').textContent = 'Configurações aplicadas — partida reiniciada.';
+  }catch(err){
+    showError('Erro ao aplicar configurações: '+err.message);
+  }
+}
+
+function liveSetLife(key){ if(!state) return; const v=Number(byId('live_life_'+key).value); if(!isNaN(v)){ state.players[key].life=v; checkGameOver(); render(); } }
+function liveSetMoney(key){ if(!state) return; const v=Number(byId('live_money_'+key).value); if(!isNaN(v)){ state.players[key].money=Math.max(0,v); render(); } }
+function liveAddCard(){
+  if(!state) return;
+  const key = byId('live_addcard_player').value;
+  const cid = byId('live_addcard_card').value;
+  const p = state.players[key];
+  if(!CONFIG.cards[cid]) return;
+  if(CONFIG.cards[cid].kind==='consumable_heal'){ p.consumables.push(cid); }
+  else if(p.hand.length<CONFIG.handLimit){ p.hand.push(cid); }
+  else { p.overflow.push(cid); }
+  render();
+}
+
+/* ---------------------------- CRIADOR DE CARTAS ---------------------------- */
+
+const CUSTOM_EFFECT_KINDS = ['attack','shield','heal','buff_force','effect_poison','effect_regen','effect_stun','effect_weaken','effect_vamp'];
+const CUSTOM_EFFECT_LABELS = {
+  attack:'Ataque', shield:'Escudo (defesa)', heal:'Cura instantânea', buff_force:'Buff de força (rounds)',
+  effect_poison:'Efeito: Veneno (dano/round no oponente)', effect_regen:'Efeito: Regeneração (cura/round em si mesmo)',
+  effect_stun:'Efeito: Atordoamento (próximo ataque do oponente falha)', effect_weaken:'Efeito: Enfraquecimento (reduz próximo ataque do oponente)',
+  effect_vamp:'Efeito: Vampirismo (próprio próximo ataque cura metade do dano)'
+};
+const SYMBOL_OPTIONS = Object.keys(ICONS).filter(k=>k!=='generic');
+
+function renderCreatorForm(){
+  byId('creatorRoot').innerHTML = `
+    <div class="creator-form">
+      <div class="admin-field full"><label>Nome da carta</label><input type="text" id="cr_name" placeholder="ex: Adaga Envenenada"></div>
+      <div class="admin-field"><label>Símbolo</label><select id="cr_symbol">${SYMBOL_OPTIONS.map(s=>`<option value="${s}">${s}</option>`).join('')}</select></div>
+      <div class="admin-field"><label>O que faz</label><select id="cr_kind" onchange="updateCreatorFields()">${CUSTOM_EFFECT_KINDS.map(k=>`<option value="${k}">${CUSTOM_EFFECT_LABELS[k]}</option>`).join('')}</select></div>
+      <div class="admin-field"><label>Raridade</label><select id="cr_rarity"><option value="comum">comum</option><option value="incomum">incomum</option><option value="raro" selected>raro</option></select></div>
+      <div class="admin-field"><label>Não gasta o round?</label><select id="cr_noround"><option value="false">Não (gasta o round)</option><option value="true">Sim (NR)</option></select></div>
+      <div id="cr_dynamicFields" class="creator-form full" style="display:contents;"></div>
+      <div class="admin-field"><label>Cópias no baralho de batalha</label><input type="number" id="cr_deckcount" value="2" min="0"></div>
+      <div class="admin-field"><label>&nbsp;</label><button class="btn-gold" onclick="createCustomCard()">Criar carta</button></div>
+    </div>
+    <div class="msg-line" id="creatorMsg"></div>
+  `;
+  updateCreatorFields();
+}
+
+function updateCreatorFields(){
+  const kind = byId('cr_kind').value;
+  let html='';
+  if(kind==='attack') html = `<div class="admin-field"><label>Dano</label><input type="number" id="cr_damage" value="3"></div><div class="admin-field"><label>Perfurante?</label><select id="cr_piercing"><option value="false">Não</option><option value="true">Sim (ignora escudo)</option></select></div>`;
+  else if(kind==='shield') html = `<div class="admin-field"><label>Escudo</label><input type="number" id="cr_shield" value="2"></div>`;
+  else if(kind==='heal') html = `<div class="admin-field"><label>Cura</label><input type="number" id="cr_heal" value="3"></div>`;
+  else if(kind==='buff_force') html = `<div class="admin-field"><label>Bônus de força</label><input type="number" id="cr_forceBonus" value="1"></div><div class="admin-field"><label>Duração (rounds)</label><input type="number" id="cr_duration" value="2"></div>`;
+  else if(kind.startsWith('effect_')){
+    if(kind==='effect_poison'||kind==='effect_regen'){
+      html = `<div class="admin-field"><label>Quantidade por round</label><input type="number" id="cr_amount" value="1"></div><div class="admin-field"><label>Duração (rounds)</label><input type="number" id="cr_duration" value="2"></div>`;
+    } else if(kind==='effect_weaken'){
+      html = `<div class="admin-field"><label>Redução no próximo ataque</label><input type="number" id="cr_amount" value="1"></div>`;
+    } else {
+      html = `<div class="admin-field"><label>&nbsp;</label><span style="font-size:11px;color:var(--faint);">sem parâmetros extras</span></div>`;
+    }
+  }
+  byId('cr_dynamicFields').innerHTML = html;
+}
+
+function createCustomCard(){
+  try{
+    const name = byId('cr_name').value.trim();
+    if(!name){ byId('creatorMsg').textContent = 'Dê um nome para a carta.'; return; }
+    const kind = byId('cr_kind').value;
+    customCounter++;
+    const id = 'custom_'+customCounter;
+    const card = {
+      name, symbol: byId('cr_symbol').value, type: CUSTOM_EFFECT_LABELS[kind],
+      kind, noRound: byId('cr_noround').value==='true', rarity: byId('cr_rarity').value
+    };
+    if(kind==='attack'){ card.damage = Number(byId('cr_damage').value)||0; card.piercing = byId('cr_piercing').value==='true'; }
+    else if(kind==='shield'){ card.shield = Number(byId('cr_shield').value)||0; }
+    else if(kind==='heal'){ card.heal = Number(byId('cr_heal').value)||0; }
+    else if(kind==='buff_force'){ card.forceBonus = Number(byId('cr_forceBonus').value)||0; card.duration = Number(byId('cr_duration').value)||1; }
+    else if(kind==='effect_poison'||kind==='effect_regen'){ card.amount = Number(byId('cr_amount').value)||1; card.duration = Number(byId('cr_duration').value)||1; }
+    else if(kind==='effect_weaken'){ card.amount = Number(byId('cr_amount').value)||1; }
+
+    const deckCount = Math.max(0, parseInt(byId('cr_deckcount').value)||0);
+    registrarCarta(id, card, {copiasNoBaralho:deckCount});
+    byId('creatorMsg').textContent = '"'+name+'" criada e adicionada ao grimório'+(deckCount>0?' e ao baralho ('+deckCount+' cópias, valendo a partir do próximo reinício).':'.');
+  }catch(err){
+    showError('Erro ao criar carta: '+err.message);
+  }
+}
+
+/* ---------------------------- IMPORTAR / EXPORTAR ---------------------------- */
+
+function exportConfig(){
+  try{
+    const data = JSON.stringify(CONFIG, null, 2);
+    const blob = new Blob([data], {type:'text/plain'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'duelo-config.txt';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 1000);
+    byId('ioMsg').textContent = 'Arquivo duelo-config.txt gerado.';
+  }catch(err){
+    byId('ioMsg').textContent = 'Não consegui gerar o arquivo: '+err.message;
+  }
+}
+function importConfigFile(ev){
+  const file = ev.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const parsed = JSON.parse(reader.result);
+      if(!parsed || typeof parsed!=='object' || !parsed.cards) throw new Error('arquivo inválido (sem "cards")');
+      CONFIG = normalizarCatalogoImportado(parsed);
+      if(GAME_MODE==='pve' && !PVE_SESSION){
+        renderAdminPanel(); renderGrimoire(); renderCreatorForm(); renderPveLobby();
+        byId('ioMsg').textContent = 'Configuração importada. Inicie a série quando estiver pronto.';
+        return;
+      }
+      if(GAME_MODE==='multiplayer' && !MP_MATCH_STARTED){
+        renderAdminPanel(); renderGrimoire(); renderCreatorForm(); mpSendLobby();
+        byId('ioMsg').textContent = 'Configuração importada e enviada ao guest.';
+        return;
+      }
+      initGame();
+      renderAdminPanel();
+      renderGrimoire();
+      byId('ioMsg').textContent = 'Configuração importada de "'+file.name+'".';
+    }catch(err){
+      showError('Não consegui importar o arquivo: '+err.message);
+    }
+  };
+  reader.readAsText(file);
+  ev.target.value = '';
+}
+
+/* ---------------------------- BOOT ---------------------------- */
+
+byId('btnRestart').addEventListener('click', ()=>{ if(GAME_MODE==='test' || (GAME_MODE==='pve' && PVE_SESSION)) initGame(); });
+byId('btnExport').addEventListener('click', exportConfig);
+byId('fileImport').addEventListener('change', importConfigFile);
+document.addEventListener('keydown', ev=>{
+  const input=byId('chatInput');
+  if(GAME_MODE!=='multiplayer' || !input || ev.key!=='Enter' || ev.shiftKey) return;
+  ev.preventDefault();
+  if(document.activeElement===input){ sendChat(); }
+  else { input.focus(); }
+});
+
+byId('legend').innerHTML = legendHTML();
+CONFIG.startingHandSize = CONFIG.handLimit;
+renderAdminPanel();
+renderGrimoire();
+renderCreatorForm();
+</script>
+</body>
+</html>
