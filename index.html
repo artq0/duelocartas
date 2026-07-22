@@ -119,6 +119,26 @@
   .card-back-pattern{width:70%; height:70%; border:1px solid var(--dim); border-radius:6px; display:flex; align-items:center; justify-content:center; background:repeating-linear-gradient(45deg, #1c1c1c 0 6px, #0a0a0a 6px 12px);}
   .card-back-pattern span{font-size:16px; color:var(--dim); font-family:'Cinzel',serif;}
 
+  .card.noround-blocked{
+    filter:hue-rotate(-35deg) saturate(1.8);
+    opacity:.55;
+    border:2px solid #d93a3a;
+}
+
+.card.noround-warning{
+    animation:noroundFlash .5s infinite alternate;
+}
+
+@keyframes noroundFlash{
+    from{
+        filter:none;
+    }
+    to{
+        filter:hue-rotate(-35deg) saturate(2);
+        box-shadow:0 0 18px #ff4444;
+    }
+}
+
   .turn-controls{margin-top:12px; display:flex; flex-direction:column; gap:6px;}
   .sd-hint{font-size:9.5px; color:var(--faint); font-family:'JetBrains Mono',monospace; text-align:center;}
 
@@ -195,9 +215,29 @@
   .mp-tabs{display:flex; gap:8px; margin:12px 0; flex-wrap:wrap;}
   .mp-status{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--dim); margin-top:10px; min-height:16px;}
   #matchChanges{background:var(--panel); border:1px solid var(--line-soft); border-radius:8px; padding:10px 14px; margin:12px 0; font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--dim);}
-  #mpChat{position:fixed; right:18px; bottom:18px; width:min(300px,calc(100vw - 36px)); background:var(--panel); border:1px solid var(--purple); border-radius:8px; z-index:5; overflow:hidden;}
+  #mpChat {
+  position: fixed;
+  right: 16px;
+  top: 16px;
+  /* ← Centraliza na tela */
+  width: min(600px, calc(100vw - 80px));  /* ← Aumenta largura */
+  max-width: 650px;
+  background: var(--panel);
+  border: 1px solid var(--purple);
+  border-radius: 8px;
+  z-index: 5;
+  overflow: hidden;
+}
   .chat-head{font-family:'Cinzel',serif; font-size:12px; padding:9px 11px; border-bottom:1px solid var(--line);}
-  #chatMessages{height:180px; overflow:auto; padding:8px 10px; font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--dim);}
+  #chatMessages {
+  height: 100px;  /* ← Reduz altura (achatado) */
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--dim);
+}
   .chat-line{margin:0 0 6px; word-break:break-word;}.chat-line b{color:var(--white);}
   .chat-compose{display:flex; gap:6px; padding:8px; border-top:1px solid var(--line);}.chat-compose input{min-width:0; flex:1;}
   .card-fly{position:fixed; z-index:30; pointer-events:none; transition:left .38s cubic-bezier(.2,.8,.2,1), top .38s cubic-bezier(.2,.8,.2,1), transform .38s ease, opacity .38s ease;}
@@ -469,7 +509,7 @@ function startPveSeries(){
   const startingLives = Math.max(1, Number(byId('pveLives').value)||3);
   PVE_DEFAULTS = {playerName, startingLives};
   PVE_SESSION = {playerName, startingLives, leftLives:startingLives, botLives:startingLives};
-  setVisible('pveLobby',false); setVisible('gameArea',true);
+  setVisible('pveLobby',false); setVisible('gameArea',true); setVisible('rulesSection', true); setVisible('cardsSection', true);
   ['adminSection','creatorSection','ioSection'].forEach(id=>setVisible(id,false));
   initGame();
   tocarSom("button");
@@ -565,7 +605,7 @@ function startMultiplayerMatch(){
 
 function launchMultiplayerMatch(){
   MP_MATCH_STARTED=true;
-  setVisible('multiplayerLobby',false); setVisible('gameArea',true); setVisible('matchChanges',true);
+  setVisible('multiplayerLobby',false); setVisible('gameArea',true); setVisible('rulesSection', true); setVisible('cardsSection', true); ; setVisible('matchChanges',true);
   ['adminSection','creatorSection','ioSection'].forEach(id=>setVisible(id,false));
   renderMatchChanges(); initGame(); renderMultiplayerChat();
 }
@@ -955,11 +995,6 @@ function playCard(key, source, idx, skipAnimation=false){
 
   if(card.noRound && p.noRoundBlockedRound===state.round){
     setLastAction(p.name+' não pode usar cartas sem gasto de round neste round por causa do Machado.');
-    render();
-    return;
-  }
-  if(card.blocksNoRoundCards && p.cardsPlayedThisTurn>0){
-    setLastAction(p.name+' só pode usar Machado se ele for a primeira carta do round.');
     render();
     return;
   }
@@ -1442,15 +1477,25 @@ function choosePostShopStarter(){
 
 function handleDragStart(ev, key, source, idx){
   dragData = {key, source, idx};
-  try{ ev.dataTransfer.setData('text/plain', key+':'+source+':'+idx); }catch(e){}
+  try{
+    ev.dataTransfer.setData('text/plain', key+':'+source+':'+idx);
+  }catch(e){}
   ev.dataTransfer.effectAllowed = 'move';
 }
 function handleTableDrop(ev){
   ev.preventDefault();
   ev.currentTarget.classList.remove('drag-over');
+
   if(!dragData) return;
-  const {key, source, idx} = dragData; dragData=null;
+
+  const {key, source, idx} = dragData;
+
+  // Remove o preview do machado
+  dragData = null;
+  render();
+
   if(state.turn!==key || state.phase!=='battle') return;
+
   tocarSom("card");
   playCard(key, source, idx);
 }
@@ -1485,18 +1530,72 @@ function cardFrontInner(cardId, instantSpent=false){
 function cardHTML(key, source, cardId, idx, playable, selected){
   const c = CONFIG.cards[cardId];
   if(!c) return '';
+
   const p = state && state.players[key];
-  const instantSpent = !!(c.noRound && p && state.phase==='battle' && state.turn===key && (p.nrUsedThisTurn>0 || p.noRoundBlockedRound===state.round));
-  const visiblyActive = playable || (GAME_MODE==='pve' && key==='right');
-  const extraClass = (c.fused?'fused-card ':'')+(selected?'selected ':'')+(visiblyActive?'':'small-disabled ');
-  const dragAttrs = playable ? `draggable="true" ondragstart="handleDragStart(event,'${key}','${source}',${idx})"` : '';
-  const dropAttrs = (playable && source==='hand') ? `ondragover="event.preventDefault()" ondrop="handleCardDrop(event,'${key}',${idx})"` : '';
-  const clickAttr = (playable && source==='hand') ? `onclick="selectForFusion('${key}',${idx})"` : '';
-  return `<div class="card ${extraClass}" data-card-owner="${key}" data-card-source="${source}" data-card-index="${idx}" title="${cardDescription(c)}" ${dragAttrs} ${dropAttrs} ${clickAttr}>
+
+  const instantSpent = !!(
+    c.noRound &&
+    p &&
+    state.phase==='battle' &&
+    state.turn===key &&
+    (p.nrUsedThisTurn>0 || p.noRoundBlockedRound===state.round)
+  );
+
+  // Carta bloqueada pelo Machado
+  const axeBlocked =
+    c.noRound &&
+    p &&
+    p.noRoundBlockedRound===state.round;
+
+  // Preview enquanto arrasta o Machado
+const axePreview =
+    dragData &&
+    dragData.previewAxe &&
+    dragData.key === key &&
+    source === "hand" &&
+    c.noRound;
+
+  const visiblyActive =
+    playable ||
+    (GAME_MODE==='pve' && key==='right');
+
+  const extraClass =
+    (c.fused ? 'fused-card ' : '') +
+    (selected ? 'selected ' : '') +
+    (visiblyActive ? '' : 'small-disabled ') +
+    (axeBlocked ? 'noround-blocked ' : '') +
+    (axePreview ? 'noround-warning ' : '');
+
+  const dragAttrs = playable
+    ? `draggable="true" ondragstart="handleDragStart(event,'${key}','${source}',${idx})"`
+    : '';
+
+  const dropAttrs =
+    (playable && source==='hand')
+      ? `ondragover="event.preventDefault()" ondrop="handleCardDrop(event,'${key}',${idx})"`
+      : '';
+
+  const clickAttr =
+    (playable && source==='hand')
+      ? `onclick="selectForFusion('${key}',${idx})"`
+      : '';
+
+  return `
+    <div class="card ${extraClass}"
+         data-card-owner="${key}"
+         data-card-source="${source}"
+         data-card-index="${idx}"
+         title="${
+  axeBlocked
+    ? 'Bloqueada pelo Machado neste turno.'
+    : cardDescription(c)
+}"
+         ${dragAttrs}
+         ${dropAttrs}
+         ${clickAttr}>
       ${cardFrontInner(cardId, instantSpent)}
     </div>`;
 }
-
 function playerColHTML(key){
   const p = state.players[key];
   const effect=state.visualEffects?.[key]||'';
